@@ -1,0 +1,16 @@
+# 本地Gradle配置 - 镜像加速
+# 使用前请将此文件复制为 gradle.properties
+
+# Gradle分发镜像
+systemProp.https.proxyHost=
+systemProp.https.proxyPort=
+systemProp.http.proxyHost=
+systemProp.http.proxyPort=
+
+# 启用并行构建
+org.gradle.parallel=true
+org.gradle.caching=true
+org.gradle.daemon=true
+
+# JVM内存配置
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8

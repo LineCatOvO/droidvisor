@@ -26,3 +26,18 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Local development configurations
+init.gradle
+init.gradle.kts
+gradle.properties
+daemon.json
+gradle/wrapper/gradle-wrapper.properties.bak
+
+# Keep template files and setup scripts
+!gradle.properties.local
+!init.gradle.kts
+!daemon.json
+!setup-local-env.sh
+!setup-local-env.bat
+!LOCAL_SETUP.md
