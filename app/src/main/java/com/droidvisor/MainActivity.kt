@@ -38,6 +38,7 @@ import com.droidvisor.datastore.dataStore
 import com.droidvisor.docker.DockerDashboardScreen
 import com.droidvisor.docker.DockerDashboardViewModel
 import com.droidvisor.ui.screen.PermissionScreen
+import com.droidvisor.ui.screen.PermissionViewModel
 import com.droidvisor.ui.screen.SettingsScreen
 import com.droidvisor.ui.screen.TerminalScreen
 import com.droidvisor.ui.screen.VmManagementScreen
