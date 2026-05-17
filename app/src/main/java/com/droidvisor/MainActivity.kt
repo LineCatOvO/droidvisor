@@ -38,6 +38,7 @@ import com.droidvisor.datastore.dataStore
 import com.droidvisor.docker.DockerDashboardScreen
 import com.droidvisor.docker.DockerDashboardViewModel
 import com.droidvisor.ui.screen.PermissionScreen
+import com.droidvisor.ui.screen.PermissionViewModel
 import com.droidvisor.ui.screen.SettingsScreen
 import com.droidvisor.ui.screen.TerminalScreen
 import com.droidvisor.ui.screen.VmManagementScreen
@@ -46,13 +47,19 @@ import com.droidvisor.vm.BackupManagerService
 import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.VmManagerService
 import com.droidvisor.vm.vsock.VsockService
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
 
-    private var vmManagerService: VmManagerService? = null
-    private var consoleService: ConsoleOutputService? = null
-    private var vsockService: VsockService? = null
-    private var backupManagerService: BackupManagerService? = null
+    private val _vmManagerState = MutableStateFlow<VmManagerService?>(null)
+    private val _consoleServiceState = MutableStateFlow<ConsoleOutputService?>(null)
+    private val _vsockServiceState = MutableStateFlow<VsockService?>(null)
+    private val _backupManagerState = MutableStateFlow<BackupManagerService?>(null)
+    private val vmManagerState = _vmManagerState.asStateFlow()
+    private val consoleServiceState = _consoleServiceState.asStateFlow()
+    private val vsockServiceState = _vsockServiceState.asStateFlow()
+    private val backupManagerState = _backupManagerState.asStateFlow()
 
     private var vmManagerBound = false
     private var consoleServiceBound = false
@@ -62,52 +69,52 @@ class MainActivity : ComponentActivity() {
     private val vmManagerConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as VmManagerService.LocalBinder
-            vmManagerService = binder.getService()
+            _vmManagerState.value = binder.getService()
             vmManagerBound = true
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             vmManagerBound = false
-            vmManagerService = null
+            _vmManagerState.value = null
         }
     }
 
     private val consoleServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as ConsoleOutputService.LocalBinder
-            consoleService = binder.getService()
+            _consoleServiceState.value = binder.getService()
             consoleServiceBound = true
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             consoleServiceBound = false
-            consoleService = null
+            _consoleServiceState.value = null
         }
     }
 
     private val vsockServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as VsockService.LocalBinder
-            vsockService = binder.getService()
+            _vsockServiceState.value = binder.getService()
             vsockServiceBound = true
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             vsockServiceBound = false
-            vsockService = null
+            _vsockServiceState.value = null
         }
     }
 
     private val backupManagerConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as BackupManagerService.LocalBinder
-            backupManagerService = binder.getService()
+            _backupManagerState.value = binder.getService()
             backupManagerBound = true
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             backupManagerBound = false
-            backupManagerService = null
+            _backupManagerState.value = null
         }
     }
 
@@ -131,10 +138,13 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val vmManager by vmManagerState.collectAsState()
+            val consoleService by consoleServiceState.collectAsState()
+            val backupManager by backupManagerState.collectAsState()
             DroidvisorApp(
-                vmManagerService = vmManagerService,
+                vmManagerService = vmManager,
                 consoleOutputService = consoleService,
-                backupManagerService = backupManagerService
+                backupManagerService = backupManager
             )
         }
     }

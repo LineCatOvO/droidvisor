@@ -1,8 +1,10 @@
 package com.droidvisor.docker
 
+import com.droidvisor.docker.api.Container as ApiContainer
+import com.droidvisor.docker.api.Image as ApiImage
+import com.droidvisor.docker.api.ImageCreateResponse
 import com.droidvisor.docker.model.Container
 import com.droidvisor.docker.model.Image
-import com.droidvisor.docker.model.ImageCreateResponse
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -44,7 +46,8 @@ class DockerApiClient(private val httpClient: DockerHttpClient) {
     suspend fun listContainers(all: Boolean = false): List<Container> {
         val path = "/containers/json?all=${if (all) "true" else "false"}"
         val response = httpClient.get(sanitizePath(path))
-        return json.decodeFromString(response)
+        val apiContainers = json.decodeFromString<List<ApiContainer>>(response)
+        return apiContainers.map { apiToUiContainer(it) }
     }
 
     suspend fun createContainer(
@@ -89,7 +92,8 @@ class DockerApiClient(private val httpClient: DockerHttpClient) {
 
     suspend fun listImages(): List<Image> {
         val response = httpClient.get("/images/json")
-        return json.decodeFromString(response)
+        val apiImages = json.decodeFromString<List<ApiImage>>(response)
+        return apiImages.map { apiToUiImage(it) }
     }
 
     suspend fun pullImage(imageName: String): List<ImageCreateResponse> {
@@ -120,6 +124,26 @@ class DockerApiClient(private val httpClient: DockerHttpClient) {
             false
         }
     }
+
+    private fun apiToUiContainer(apiContainer: ApiContainer): Container {
+        return Container(
+            id = apiContainer.Id,
+            name = apiContainer.name,
+            image = apiContainer.Image,
+            status = apiContainer.State,
+            created = apiContainer.Created,
+            ports = apiContainer.Ports.map { "${it.PrivatePort}${if (it.PublicPort != null) ":${it.PublicPort}" else ""}" }
+        )
+    }
+
+    private fun apiToUiImage(apiImage: ApiImage): Image {
+        return Image(
+            name = apiImage.name,
+            tag = apiImage.tag,
+            size = apiImage.sizeFormatted,
+            created = java.time.Instant.ofEpochSecond(apiImage.Created).toString()
+        )
+    }
 }
 
 @kotlinx.serialization.Serializable
@@ -133,7 +157,7 @@ data class CreateContainerRequest(
         Cmd = command?.split(" ")?.filter { it.isNotEmpty() },
         HostConfig = ports?.let { HostConfigRequest(PortBindings = it.mapValues { (_, hostPort) ->
             listOf(PortBindingRequest(HostPort = hostPort.toString()))
-        }) }
+        })}
     )
 }
 

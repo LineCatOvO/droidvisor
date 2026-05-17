@@ -1,4 +1,4 @@
-package com.droidvisor.docker.model
+package com.droidvisor.docker.api
 
 import kotlinx.serialization.Serializable
 
