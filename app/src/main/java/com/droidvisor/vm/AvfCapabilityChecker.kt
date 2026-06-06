@@ -21,7 +21,29 @@ class AvfCapabilityChecker(private val context: Context) {
         PROTECTED_VM_NOT_SUPPORTED,
         NON_PROTECTED_VM_NOT_SUPPORTED,
         VSOCK_NOT_SUPPORTED,
-        UNKNOWN
+        UNKNOWN;
+
+        val displayText: String
+            get() = when (this) {
+                SDK_TOO_LOW -> "系统版本过低，需要 Android 14+"
+                AVF_CLASS_NOT_FOUND -> "设备不支持 Android 虚拟化框架 (AVF)"
+                AVF_INSTANCE_FAILED -> "AVF 框架初始化失败，可能缺少系统权限"
+                PROTECTED_VM_NOT_SUPPORTED -> "设备不支持受保护虚拟机 (pKVM)"
+                NON_PROTECTED_VM_NOT_SUPPORTED -> "设备不支持非保护虚拟机"
+                VSOCK_NOT_SUPPORTED -> "设备不支持 Vsock 通信"
+                UNKNOWN -> "未知原因"
+            }
+
+        val suggestion: String
+            get() = when (this) {
+                SDK_TOO_LOW -> "请升级到 Android 14 或更高版本"
+                AVF_CLASS_NOT_FOUND -> "此设备硬件/固件不支持虚拟化，应用将以模拟模式运行"
+                AVF_INSTANCE_FAILED -> "请确认应用已获得虚拟化管理权限，或尝试重启设备"
+                PROTECTED_VM_NOT_SUPPORTED -> "此设备未启用 pKVM，虚拟机安全性无法保障，部分功能可能受限"
+                NON_PROTECTED_VM_NOT_SUPPORTED -> "此设备不支持非保护虚拟机，将尝试使用保护虚拟机"
+                VSOCK_NOT_SUPPORTED -> "Vsock 不可用，Docker 和终端功能将无法正常工作"
+                UNKNOWN -> "请尝试重启设备或更新系统"
+            }
     }
 
     data class AvfCapabilities(
@@ -30,19 +52,36 @@ class AvfCapabilityChecker(private val context: Context) {
         val isNonProtectedVmSupported: Boolean,
         val isVsockSupported: Boolean,
         val minimumSdkMet: Boolean,
+        val isQemuSupported: Boolean = false,
         val avfUnavailableReasons: List<AvfUnavailableReason> = emptyList()
     ) {
         val canRunRealVm: Boolean
             get() = isAvfSupported && (isProtectedVmSupported || isNonProtectedVmSupported) && minimumSdkMet
 
+        /** 是否有任何可用的运行时（AVF 或 QEMU） */
+        val hasAnyRuntime: Boolean
+            get() = canRunRealVm || isQemuSupported
+
         val isSimulationOnly: Boolean
-            get() = !canRunRealVm
+            get() = !hasAnyRuntime
 
         val unavailableReasonTexts: List<String>
             get() = avfUnavailableReasons.map { it.displayText }
 
         val summaryText: String
-            get() = if (canRunRealVm) "AVF 可用" else "AVF 不可用: ${unavailableReasonTexts.joinToString("、")}"
+            get() = when {
+                canRunRealVm -> "AVF 可用"
+                isQemuSupported -> "QEMU 兼容模式可用"
+                else -> "无可用的虚拟化运行时: ${unavailableReasonTexts.joinToString("、")}"
+            }
+
+        /** 推荐的运行时类型 */
+        val recommendedRuntime: String
+            get() = when {
+                canRunRealVm -> "AVF (Android Virtualization Framework)"
+                isQemuSupported -> "QEMU (兼容模式)"
+                else -> "模拟模式（无真实虚拟化）"
+            }
     }
 
     fun checkCapabilities(): AvfCapabilities {
@@ -57,6 +96,7 @@ class AvfCapabilityChecker(private val context: Context) {
         val isProtectedVmSupported = checkProtectedVmSupport(reasons)
         val isNonProtectedVmSupported = checkNonProtectedVmSupport(reasons)
         val isVsockSupported = checkVsockSupport(reasons)
+        val isQemuSupported = checkQemuSupport()
 
         return AvfCapabilities(
             isAvfSupported = isAvfSupported,
@@ -64,6 +104,7 @@ class AvfCapabilityChecker(private val context: Context) {
             isNonProtectedVmSupported = isNonProtectedVmSupported,
             isVsockSupported = isVsockSupported,
             minimumSdkMet = minimumSdkMet,
+            isQemuSupported = isQemuSupported,
             avfUnavailableReasons = reasons
         )
     }
@@ -167,30 +208,61 @@ class AvfCapabilityChecker(private val context: Context) {
         }
     }
 
+    /**
+     * 检测 QEMU 是否可用
+     *
+     * 检查 qemu-system-aarch64 和 qemu-img 是否存在且可执行。
+     * QEMU 可以作为 AVF 不可用时的 fallback 运行时。
+     */
+    private fun checkQemuSupport(): Boolean {
+        return try {
+            val qemuBinary = checkQemuBinary()
+            val qemuImg = checkQemuImg()
+            val supported = qemuBinary && qemuImg
+
+            if (supported) {
+                Log.d(TAG, "QEMU runtime is available as fallback")
+            } else {
+                Log.d(TAG, "QEMU not available (binary=$qemuBinary, img=$qemuImg)")
+            }
+
+            supported
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking QEMU support", e)
+            false
+        }
+    }
+
+    private fun checkQemuBinary(): Boolean {
+        return try {
+            val candidates = listOf(
+                "qemu-system-aarch64",
+                "qemu-system-x86_64",
+                "/system/bin/qemu-system-aarch64"
+            )
+            candidates.any { candidate ->
+                val file = java.io.File(candidate)
+                file.exists() && file.canExecute()
+            } || run {
+                val process = Runtime.getRuntime().exec(arrayOf("which", "qemu-system-aarch64"))
+                process.waitFor() == 0
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun checkQemuImg(): Boolean {
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("qemu-img", "--version"))
+            process.waitFor() == 0
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     companion object {
         private const val FEATURE_VIRTUALIZATION_FRAMEWORK = "android.software.virtualization_framework"
         private const val VMM_CLASS_NAME = "android.system.virtualmachine.VirtualMachineManager"
-
-        val AvfUnavailableReason.displayText: String
-            get() = when (this) {
-                AvfUnavailableReason.SDK_TOO_LOW -> "系统版本过低，需要 Android 14+"
-                AvfUnavailableReason.AVF_CLASS_NOT_FOUND -> "设备不支持 Android 虚拟化框架 (AVF)"
-                AvfUnavailableReason.AVF_INSTANCE_FAILED -> "AVF 框架初始化失败，可能缺少系统权限"
-                AvfUnavailableReason.PROTECTED_VM_NOT_SUPPORTED -> "设备不支持受保护虚拟机 (pKVM)"
-                AvfUnavailableReason.NON_PROTECTED_VM_NOT_SUPPORTED -> "设备不支持非保护虚拟机"
-                AvfUnavailableReason.VSOCK_NOT_SUPPORTED -> "设备不支持 Vsock 通信"
-                AvfUnavailableReason.UNKNOWN -> "未知原因"
-            }
-
-        val AvfUnavailableReason.suggestion: String
-            get() = when (this) {
-                AvfUnavailableReason.SDK_TOO_LOW -> "请升级到 Android 14 或更高版本"
-                AvfUnavailableReason.AVF_CLASS_NOT_FOUND -> "此设备硬件/固件不支持虚拟化，应用将以模拟模式运行"
-                AvfUnavailableReason.AVF_INSTANCE_FAILED -> "请确认应用已获得虚拟化管理权限，或尝试重启设备"
-                AvfUnavailableReason.PROTECTED_VM_NOT_SUPPORTED -> "此设备未启用 pKVM，虚拟机安全性无法保障，部分功能可能受限"
-                AvfUnavailableReason.NON_PROTECTED_VM_NOT_SUPPORTED -> "此设备不支持非保护虚拟机，将尝试使用保护虚拟机"
-                AvfUnavailableReason.VSOCK_NOT_SUPPORTED -> "Vsock 不可用，Docker 和终端功能将无法正常工作"
-                AvfUnavailableReason.UNKNOWN -> "请尝试重启设备或更新系统"
-            }
     }
 }

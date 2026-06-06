@@ -32,25 +32,19 @@ jobs:
         uses: ./.github/actions/setup-android
 
       - name: Run Detekt
-        run: ./gradlew detekt --stacktrace
+        run: ./gradlew detekt --no-daemon --stacktrace
 
-      - name: Upload Detekt Report (HTML)
+      - name: Upload Detekt Report
         uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
-          name: detekt-report-html
-          path: app/build/reports/detekt/detekt.html
+          name: detekt-report
+          path: |
+            app/build/reports/detekt/detekt.html
+            app/build/reports/detekt/detekt.md
           retention-days: 14
 
-      - name: Upload Detekt Report (SARIF)
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        with:
-          name: detekt-report-sarif
-          path: app/build/reports/detekt/detekt.sarif
-          retention-days: 14
-
-      - name: Upload Detekt Results to GitHub Security
+      - name: Upload Detekt to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: success() || failure()
         with:
@@ -70,7 +64,7 @@ jobs:
         uses: ./.github/actions/setup-android
 
       - name: Run Android Lint
-        run: ./gradlew lintDebug --stacktrace
+        run: ./gradlew lintDebug --no-daemon --stacktrace
 
       - name: Upload Lint Report
         uses: actions/upload-artifact@v4
