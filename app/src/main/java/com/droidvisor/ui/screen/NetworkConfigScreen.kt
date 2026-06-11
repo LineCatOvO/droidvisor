@@ -72,6 +72,7 @@ fun NetworkConfigScreen(
                 title = { Text("$vmName 网络配置") },
                 navigationIcon = {
                     IconButton(onClick = { /* 关闭界面 */ }) {
+                        @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 },

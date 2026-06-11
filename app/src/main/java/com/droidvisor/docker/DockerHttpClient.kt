@@ -1,15 +1,17 @@
 package com.droidvisor.docker
 
-import android.util.Log
+import com.droidvisor.util.Logger
 import com.droidvisor.vm.vsock.VsockService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.locks.ReentrantLock
 
 class DockerHttpClient(private val vsockService: VsockService) {
 
@@ -17,6 +19,9 @@ class DockerHttpClient(private val vsockService: VsockService) {
     private val json = Json { ignoreUnknownKeys = true }
     private var baseUrl: String = "http://localhost:2375"
     private var useVsock: Boolean = false
+
+    /** 保护 Vsock 流的并发访问锁 — 避免多协程同时读写导致数据错乱 */
+    private val vsockLock = ReentrantLock()
 
     val isVsockEnabled: Boolean
         get() = useVsock
@@ -27,7 +32,7 @@ class DockerHttpClient(private val vsockService: VsockService) {
 
     fun enableVsockMode(enabled: Boolean) {
         useVsock = enabled
-        Log.d(TAG, "Vsock mode: $enabled")
+        Logger.d(TAG, "Vsock mode: $enabled")
     }
 
     suspend fun get(path: String): String {
@@ -43,9 +48,11 @@ class DockerHttpClient(private val vsockService: VsockService) {
     }
 
     private fun sanitizeLog(message: String): String {
+        val pattern1 = Regex("""\{[^}]+\}""")
+        val pattern2 = Regex("""https?://[^\s]+""")
         return message
-            .replace(Regex("""\{[^}]*\}"""), "[JSON REDACTED]")
-            .replace(Regex("""http[s]?://[^\s]+"""), "[URL REDACTED]")
+            .replace(pattern1, "[JSON REDACTED]")
+            .replace(pattern2, "[URL REDACTED]")
     }
 
     suspend fun executeRequest(method: String, path: String, body: String = ""): String {
@@ -58,11 +65,13 @@ class DockerHttpClient(private val vsockService: VsockService) {
 
     private suspend fun executeVsockRequest(method: String, path: String, body: String): String {
         return withContext(Dispatchers.IO) {
+            vsockLock.lock()
             try {
                 val outputStream = vsockService.getOutputStream()
                     ?: throw DockerError.ConnectionError("Vsock output stream not available")
-                val inputStream = vsockService.getInputStream()
+                val rawStream = vsockService.getInputStream()
                     ?: throw DockerError.ConnectionError("Vsock input stream not available")
+                val inputStream = BufferedInputStream(rawStream, 8192)
 
                 val request = buildHttpRequest(method, path, body)
                 outputStream.write(request.toByteArray())
@@ -71,7 +80,7 @@ class DockerHttpClient(private val vsockService: VsockService) {
                 val response = readVsockResponse(inputStream)
 
                 if (response.statusCode in 200..299) {
-                    Log.d(TAG, "Vsock request $method $path succeeded: ${response.statusCode}")
+                    Logger.d(TAG, "Vsock request $method $path succeeded: ${response.statusCode}")
                     response.body
                 } else {
                     val sanitizedError = sanitizeLog(response.body)
@@ -84,8 +93,10 @@ class DockerHttpClient(private val vsockService: VsockService) {
             } catch (e: DockerError) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Vsock request failed: ${e.message}", e)
+                Logger.e(TAG, "Vsock request failed: ${e.message}", e)
                 throw DockerError.ConnectionError("Vsock connection failed: ${e.message}")
+            } finally {
+                vsockLock.unlock()
             }
         }
     }
@@ -216,7 +227,7 @@ class DockerHttpClient(private val vsockService: VsockService) {
                 val responseBody = readStream(connection.inputStream)
 
                 if (responseCode in 200..299) {
-                    Log.d(TAG, "Request $method $path succeeded: $responseCode")
+                    Logger.d(TAG, "Request $method $path succeeded: $responseCode")
                     responseBody
                 } else {
                     val errorBody = readStream(connection.errorStream)
@@ -230,7 +241,7 @@ class DockerHttpClient(private val vsockService: VsockService) {
             } catch (e: DockerError) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "HTTP request failed: ${e.message}", e)
+                Logger.e(TAG, "HTTP request failed: ${e.message}", e)
                 throw DockerError.ConnectionError("Connection failed")
             }
         }

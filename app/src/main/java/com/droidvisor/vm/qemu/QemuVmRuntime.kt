@@ -2,7 +2,7 @@ package com.droidvisor.vm.qemu
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
-import android.util.Log
+import com.droidvisor.util.Logger
 import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.VmConfig
 import com.droidvisor.vm.VmError
@@ -54,6 +54,9 @@ class QemuVmRuntime(
     /** 进程管理器 */
     private var processManager: QemuProcessManager? = null
 
+    /** VM 启动时间戳 */
+    private var startedAtMs: Long = 0L
+
     /** Vsock 服务端列表 (port -> server) */
     private val vsockServers = mutableMapOf<Int, QemuVsockServer>()
 
@@ -80,7 +83,7 @@ class QemuVmRuntime(
      */
     fun initialize(): Boolean {
         if (!isAvailable()) {
-            Log.w(TAG, "QEMU runtime not available on this device")
+            Logger.w(TAG, "QEMU runtime not available on this device")
             return false
         }
 
@@ -89,7 +92,7 @@ class QemuVmRuntime(
             File(workDir, subdir).mkdirs()
         }
 
-        Log.d(TAG, "QEMU runtime initialized. Work dir: ${workDir.absolutePath}")
+        Logger.d(TAG, "QEMU runtime initialized. Work dir: ${workDir.absolutePath}")
         return true
     }
 
@@ -103,7 +106,7 @@ class QemuVmRuntime(
         val updatedQemuConfig = qemuConfig.copy(baseConfig = config)
         rebuildProcessManager(updatedQemuConfig)
 
-        Log.d(TAG, "Configuration updated: ${config.memoryBytes} bytes, ${config.cpuCores} CPUs")
+        Logger.d(TAG, "Configuration updated: ${config.memoryBytes} bytes, ${config.cpuCores} CPUs")
     }
 
     override fun startVm() {
@@ -125,11 +128,12 @@ class QemuVmRuntime(
             launchQemuProcess()
 
             _status.value = VmStatus.RUNNING
+            startedAtMs = System.currentTimeMillis()
             consoleService?.appendOutput("[QEMU] Virtual machine is running")
-            Log.d(TAG, "QEMU VM started successfully")
+            Logger.d(TAG, "QEMU VM started successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start QEMU VM", e)
+            Logger.e(TAG, "Failed to start QEMU VM", e)
             consoleService?.appendOutput("[QEMU] Error: ${e.message}")
             _status.value = VmStatus.ERROR
             cleanupResources()
@@ -147,16 +151,23 @@ class QemuVmRuntime(
 
         try {
             processManager?.stop(force = false, timeoutMs = 8000L)
-            cleanupResources()
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error stopping QEMU process", e)
+            consoleService?.appendOutput("[QEMU] Stop error: ${e.message}")
+        }
 
+        // Always cleanup resources regardless of stop success
+        val exitCode = processManager?.getExitCode()
+        cleanupResources()
+        startedAtMs = 0L
+
+        if (exitCode != null && exitCode != 0) {
+            _status.value = VmStatus.ERROR
+            consoleService?.appendOutput("[QEMU] Process exited with error (code=$exitCode)")
+        } else {
             _status.value = VmStatus.STOPPED
             consoleService?.appendOutput("[QEMU] Virtual machine stopped")
-            Log.d(TAG, "QEMU VM stopped successfully")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping QEMU VM", e)
-            consoleService?.appendOutput("[QEMU] Stop error: ${e.message}")
-            _status.value = VmStatus.ERROR
+            Logger.d(TAG, "QEMU VM stopped successfully")
         }
     }
 
@@ -167,25 +178,26 @@ class QemuVmRuntime(
             }
 
             forceCleanup()
+            startedAtMs = 0L
             _status.value = VmStatus.STOPPED
             consoleService?.appendOutput("[QEMU] VM closed, all resources released")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing QEMU VM", e)
+            Logger.e(TAG, "Error closing QEMU VM", e)
             _status.value = VmStatus.STOPPED
         }
     }
 
     override fun connectVsock(port: Int): ParcelFileDescriptor? {
         if (_status.value != VmStatus.RUNNING) {
-            Log.w(TAG, "Cannot connect vsock: VM not running (status=${_status.value})")
+            Logger.w(TAG, "Cannot connect vsock: VM not running (status=${_status.value})")
             return null
         }
 
         return try {
             // 尝试使用已有的连接
             activeVsockChannels[port]?.let {
-                Log.d(TAG, "Reusing existing vsock connection for port $port")
+                Logger.d(TAG, "Reusing existing vsock connection for port $port")
                 return createPfdFromChannel(it)
             }
 
@@ -195,11 +207,11 @@ class QemuVmRuntime(
             channel.connect()
 
             activeVsockChannels[port] = channel
-            Log.d(TAG, "Vsock connected to port $port via $socketPath")
+            Logger.d(TAG, "Vsock connected to port $port via $socketPath")
 
             createPfdFromChannel(channel)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to connect vsock on port $port", e)
+            Logger.e(TAG, "Failed to connect vsock on port $port", e)
             null
         }
     }
@@ -235,8 +247,8 @@ class QemuVmRuntime(
             pid = processManager?.getPid() ?: -1,
             diskUsageBytes = diskManager.getTotalDiskUsage(),
             activeVsockConnections = activeVsockChannels.size,
-            uptimeMs = if (_status.value == VmStatus.RUNNING) {
-                System.currentTimeMillis() - (processManager?.let { 0L } ?: 0L)
+            uptimeMs = if (_status.value == VmStatus.RUNNING && startedAtMs > 0) {
+                System.currentTimeMillis() - startedAtMs
             } else 0L
         )
     }
@@ -253,13 +265,13 @@ class QemuVmRuntime(
                 sizeGb = diskSizeGb,
                 format = qemuConfig.diskFormat
             )
-            Log.d(TAG, "Main disk prepared: ${mainDisk.absolutePath}")
+            Logger.d(TAG, "Main disk prepared: ${mainDisk.absolutePath}")
 
             // 更新配置中的磁盘路径
             rebuildProcessManager(qemuConfig.copy(diskPath = mainDisk.absolutePath))
         } else {
-            val existingDisk = File(currentConfig.diskPath!!)
-            if (!existingDisk.exists()) {
+            val existingDisk = currentConfig.diskPath?.let { File(it) }
+            if (existingDisk != null && !existingDisk.exists()) {
                 diskManager.createDisk(
                     name = "vm_main",
                     sizeGb = diskSizeGb,
@@ -276,7 +288,7 @@ class QemuVmRuntime(
                     sizeGb = extraDisk.sizeGb,
                     format = extraDisk.format
                 )
-                Log.d(TAG, "Extra disk $index prepared: ${created.absolutePath}")
+                Logger.d(TAG, "Extra disk $index prepared: ${created.absolutePath}")
             }
         }
     }
@@ -290,7 +302,7 @@ class QemuVmRuntime(
             }
             if (server.start()) {
                 vsockServers[mapping.hostPort] = server
-                Log.d(TAG, "Vsock server started for port ${mapping.guestPort} -> $socketPath")
+                Logger.d(TAG, "Vsock server started for port ${mapping.guestPort} -> $socketPath")
             }
         }
     }
@@ -310,7 +322,7 @@ class QemuVmRuntime(
             config = effectiveConfig,
             consoleOutput = { line ->
                 consoleService?.appendOutput("[QEMU] $line")
-                Log.d(TAG, "[console] $line")
+                Logger.d(TAG, "[console] $line")
             },
             scope = scope
         ).apply { start() }
@@ -340,7 +352,7 @@ class QemuVmRuntime(
 
     private fun cleanupResources() {
         // 关闭 Vsock 连接
-        activeVsockChannels.values.forEach { try { it.close() } catch (_: Exception) {} }
+        activeVsockChannels.values.forEach { try { it.close() } catch (e: Exception) { Logger.d(TAG, "Error closing vsock channel", e) } }
         activeVsockChannels.clear()
 
         // 停止 Vsock 服务端
@@ -354,7 +366,6 @@ class QemuVmRuntime(
 
     private fun forceCleanup() {
         cleanupResources()
-        System.gc()
     }
 
     private fun rebuildProcessManager(newConfig: QemuVmConfig) {
@@ -370,13 +381,12 @@ class QemuVmRuntime(
 
     private fun createPfdFromChannel(channel: QemuVsockChannel): ParcelFileDescriptor? {
         return try {
-            // 通过 pipe 创建一个可传递给 AVF 兼容层的 FD
             val pipe = ParcelFileDescriptor.createPipe()
-            // 在实际使用中，这里需要将 socket fd 转换为 PFD
-            // 目前返回一个有效的 PFD 作为占位符
+            // Close the write end — we only return the read end to the caller
+            pipe[1].close()
             pipe[0]
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create PFD from channel", e)
+            Logger.e(TAG, "Failed to create PFD from channel", e)
             null
         }
     }
@@ -394,7 +404,7 @@ class QemuVmRuntime(
                 p.waitFor() == 0
             }
         } catch (e: Exception) {
-            Log.d(TAG, "QEMU binary check failed", e)
+            Logger.d(TAG, "QEMU binary check failed", e)
             false
         }
     }
@@ -405,7 +415,7 @@ class QemuVmRuntime(
             val imgCheck = Runtime.getRuntime().exec(arrayOf("qemu-img", "--version"))
             imgCheck.waitFor() == 0
         } catch (e: Exception) {
-            Log.d(TAG, "qemu-img not available", e)
+            Logger.d(TAG, "qemu-img not available", e)
             false
         }
     }

@@ -4,8 +4,10 @@ import android.app.Service
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
-import android.util.Log
+import com.droidvisor.util.Logger
 import com.droidvisor.docker.model.Container
+import com.droidvisor.docker.model.DockerNetwork
+import com.droidvisor.docker.model.DockerVolume
 import com.droidvisor.docker.model.Image
 import com.droidvisor.vm.vsock.VsockService
 import com.droidvisor.vm.vsock.isConnected
@@ -19,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class DockerProxyService : Service() {
+class DockerProxyService : Service(), IDockerProxyService {
 
     private val TAG = "DockerProxyService"
     private val binder = LocalBinder()
@@ -30,13 +32,13 @@ class DockerProxyService : Service() {
     private lateinit var apiClient: DockerApiClient
 
     private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    override val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
     private val _daemonHealthy = MutableStateFlow(false)
-    val daemonHealthy: StateFlow<Boolean> = _daemonHealthy.asStateFlow()
+    override val daemonHealthy: StateFlow<Boolean> = _daemonHealthy.asStateFlow()
 
     private val _reconnecting = MutableStateFlow(false)
-    val reconnecting: StateFlow<Boolean> = _reconnecting.asStateFlow()
+    override val reconnecting: StateFlow<Boolean> = _reconnecting.asStateFlow()
 
     private val _dockerVersion = MutableStateFlow<String?>(null)
     val dockerVersion: StateFlow<String?> = _dockerVersion.asStateFlow()
@@ -98,9 +100,9 @@ class DockerProxyService : Service() {
             _daemonHealthy.value = true
             _dockerVersion.value = version.Version
             _reconnecting.value = false
-            Log.d(TAG, "Docker daemon healthy: ${version.Version}")
+            Logger.d(TAG, "Docker daemon healthy: ${version.Version}")
         } catch (e: DockerError) {
-            Log.e(TAG, "Docker daemon unhealthy, attempting recovery", e)
+            Logger.e(TAG, "Docker daemon unhealthy, attempting recovery", e)
             _daemonHealthy.value = false
             if (!_reconnecting.value && _isConnected.value) {
                 _reconnecting.value = true
@@ -113,13 +115,13 @@ class DockerProxyService : Service() {
         try {
             vsockService?.let { service ->
                 val currentPort = VsockService.DEFAULT_DOCKER_PORT
-                Log.d(TAG, "Attempting to recover Docker daemon connection on port $currentPort")
+                Logger.d(TAG, "Attempting to recover Docker daemon connection on port $currentPort")
                 service.disconnect()
                 delay(2000)
                 service.connect(currentPort)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to recover Docker daemon", e)
+            Logger.e(TAG, "Failed to recover Docker daemon", e)
         } finally {
             _reconnecting.value = false
         }
@@ -138,68 +140,101 @@ class DockerProxyService : Service() {
         _dockerVersion.value = null
     }
 
-    suspend fun listContainers(): List<Container> {
+    override suspend fun listContainers(): List<Container> {
         return try {
             val result = apiClient.listContainers(all = true)
             _containers.value = result
             result
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to list containers", e)
+            Logger.e(TAG, "Failed to list containers", e)
             emptyList()
         }
     }
 
-    suspend fun startContainer(containerId: String): Boolean {
+    override suspend fun startContainer(containerId: String): Boolean {
         return try {
             apiClient.startContainer(containerId)
             refreshContainers()
             true
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to start container $containerId", e)
+            Logger.e(TAG, "Failed to start container $containerId", e)
             false
         }
     }
 
-    suspend fun stopContainer(containerId: String): Boolean {
+    override suspend fun stopContainer(containerId: String): Boolean {
         return try {
             apiClient.stopContainer(containerId)
             refreshContainers()
             true
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to stop container $containerId", e)
+            Logger.e(TAG, "Failed to stop container $containerId", e)
             false
         }
     }
 
-    suspend fun removeContainer(containerId: String): Boolean {
+    override suspend fun removeContainer(containerId: String): Boolean {
         return try {
             apiClient.removeContainer(containerId, force = true)
             refreshContainers()
             true
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to remove container $containerId", e)
+            Logger.e(TAG, "Failed to remove container $containerId", e)
             false
         }
     }
 
-    suspend fun listImages(): List<Image> {
+    override suspend fun pauseContainer(containerId: String): Boolean {
+        return try {
+            apiClient.pauseContainer(containerId)
+            refreshContainers()
+            true
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to pause container $containerId", e)
+            false
+        }
+    }
+
+    override suspend fun unpauseContainer(containerId: String): Boolean {
+        return try {
+            apiClient.unpauseContainer(containerId)
+            refreshContainers()
+            true
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to unpause container $containerId", e)
+            false
+        }
+    }
+
+    override suspend fun removeImage(imageId: String, force: Boolean): Boolean {
+        return try {
+            apiClient.removeImage(imageId, force)
+            refreshImages()
+            true
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to remove image $imageId", e)
+            false
+        }
+    }
+
+    override suspend fun listImages(): List<Image> {
         return try {
             val result = apiClient.listImages()
             _images.value = result
             result
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to list images", e)
+            Logger.e(TAG, "Failed to list images", e)
             emptyList()
         }
     }
 
-    suspend fun pullImage(imageName: String): Boolean {
+    override suspend fun pullImage(imageName: String): Boolean {
         return try {
             apiClient.pullImage(imageName)
             refreshImages()
             true
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to pull image $imageName", e)
+            Logger.e(TAG, "Failed to pull image $imageName", e)
             false
         }
     }
@@ -211,18 +246,78 @@ class DockerProxyService : Service() {
             refreshContainers()
             true
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to create container", e)
+            Logger.e(TAG, "Failed to create container", e)
             false
         }
     }
 
-    suspend fun getContainerLogs(containerId: String): List<ContainerLogEntry> {
+    override suspend fun getContainerLogs(containerId: String): List<ContainerLogEntry> {
         return try {
             val rawLogs = apiClient.getContainerLogs(containerId)
             parseContainerLogs(rawLogs)
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to get container logs $containerId", e)
+            Logger.e(TAG, "Failed to get container logs $containerId", e)
             emptyList()
+        }
+    }
+
+    // ── Volume Operations ──
+
+    override suspend fun listVolumes(): List<DockerVolume> {
+        return try {
+            apiClient.listVolumes()
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to list volumes", e)
+            emptyList()
+        }
+    }
+
+    override suspend fun createVolume(name: String, driver: String): DockerVolume? {
+        return try {
+            apiClient.createVolume(name, driver)
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to create volume $name", e)
+            null
+        }
+    }
+
+    override suspend fun removeVolume(name: String, force: Boolean): Boolean {
+        return try {
+            apiClient.removeVolume(name, force)
+            true
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to remove volume $name", e)
+            false
+        }
+    }
+
+    // ── Network Operations ──
+
+    override suspend fun listNetworks(): List<DockerNetwork> {
+        return try {
+            apiClient.listNetworks()
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to list networks", e)
+            emptyList()
+        }
+    }
+
+    override suspend fun createNetwork(name: String, driver: String): DockerNetwork? {
+        return try {
+            apiClient.createNetwork(name, driver)
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to create network $name", e)
+            null
+        }
+    }
+
+    override suspend fun removeNetwork(id: String): Boolean {
+        return try {
+            apiClient.removeNetwork(id)
+            true
+        } catch (e: DockerError) {
+            Logger.e(TAG, "Failed to remove network $id", e)
+            false
         }
     }
 
@@ -258,9 +353,9 @@ class DockerProxyService : Service() {
         try {
             val version = apiClient.getDockerVersion()
             _dockerVersion.value = version.Version
-            Log.d(TAG, "Docker version: ${version.Version}")
+            Logger.d(TAG, "Docker version: ${version.Version}")
         } catch (e: DockerError) {
-            Log.e(TAG, "Failed to get Docker version", e)
+            Logger.e(TAG, "Failed to get Docker version", e)
         }
     }
 

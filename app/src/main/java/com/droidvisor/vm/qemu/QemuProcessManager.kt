@@ -1,6 +1,6 @@
 package com.droidvisor.vm.qemu
 
-import android.util.Log
+import com.droidvisor.util.Logger
 import com.droidvisor.vm.VmError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,24 +82,30 @@ class QemuProcessManager(
         }
 
         // 固件/BIOS
-        if (config.firmwarePath != null && File(config.firmwarePath).exists()) {
-            args.add("-bios")
-            args.add(config.firmwarePath!!)
+        config.firmwarePath?.let { path ->
+            if (File(path).exists()) {
+                args.add("-bios")
+                args.add(path)
+            }
         }
 
         // 内核镜像
-        if (config.kernelImagePath != null && File(config.kernelImagePath).exists()) {
-            args.add("-kernel")
-            args.add(config.kernelImagePath!!)
+        config.kernelImagePath?.let { kernelPath ->
+            if (File(kernelPath).exists()) {
+                args.add("-kernel")
+                args.add(kernelPath)
 
-            if (config.initrdPath != null && File(config.initrdPath).exists()) {
-                args.add("-initrd")
-                args.add(config.initrdPath!!)
+                config.initrdPath?.let { initrdPath ->
+                    if (File(initrdPath).exists()) {
+                        args.add("-initrd")
+                        args.add(initrdPath)
+                    }
+                }
+
+                // 内核启动参数
+                args.add("-append")
+                args.add("console=ttyS0 root=/dev/vda rw panic=-1")
             }
-
-            // 内核启动参数
-            args.add("-append")
-            args.add("console=ttyS0 root=/dev/vda rw panic=-1")
         }
 
         // 磁盘配置
@@ -137,21 +143,20 @@ class QemuProcessManager(
         // 图形输出
         if (config.enableGraphic) {
             args.removeIf { it == "-nographic" }
-        } else if (!args.contains("-display")) {
-            args.add("-display")
-            args.add("none")
-        }
-
-        // 阻止 QEMU 自动退出（无图形时需要）
-        if (!config.enableGraphic) {
+        } else {
+            // 非图形模式：确保有 display 配置并守护进程化
+            if (!args.contains("-display")) {
+                args.add("-display")
+                args.add("none")
+            }
+            // 守护进程化，防止 QEMU 阻塞或依赖 tty
             args.add("-daemonize")
-            args.removeIf { it == "-nographic" || it == "-serial" || it == "-mon" }
         }
 
         // 额外参数
         args.addAll(config.extraArgs)
 
-        Log.d(TAG, "QEMU command line: ${args.joinToString(" ")}")
+        Logger.d(TAG, "QEMU command line: ${args.joinToString(" ")}")
 
         return args
     }
@@ -173,7 +178,7 @@ class QemuProcessManager(
 
         for (candidate in candidates) {
             if (File(candidate).canExecute()) {
-                Log.d(TAG, "Found QEMU binary: $candidate")
+                Logger.d(TAG, "Found QEMU binary: $candidate")
                 return candidate
             }
         }
@@ -183,12 +188,14 @@ class QemuProcessManager(
             val process = ProcessBuilder("which", "qemu-system-aarch64")
                 .redirectErrorStream(true)
                 .start()
-            val output = process.inputStream.bufferedReader().readText().trim()
+            val output = process.inputStream.bufferedReader().use { it.readText().trim() }
             if (process.waitFor() == 0 && output.isNotEmpty() && File(output).canExecute()) {
-                Log.d(TAG, "Found QEMU via which: $output")
+                Logger.d(TAG, "Found QEMU via which: $output")
                 return output
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Logger.d(TAG, "which qemu-system-aarch64 failed", e)
+        }
 
         throw VmError.StartError(
             "QEMU binary not found. Tried: ${candidates.joinToString(", ")}"
@@ -295,7 +302,7 @@ class QemuProcessManager(
             _running.set(true)
             _exitCode.set(null)
             _processState.value = ProcessState.RUNNING
-            Log.d(TAG, "QEMU process started, pid=$pid")
+            Logger.d(TAG, "QEMU process started, pid=$pid")
 
         } catch (e: IOException) {
             _processState.value = ProcessState.ERROR
@@ -312,8 +319,18 @@ class QemuProcessManager(
             .redirectErrorStream(true)
             .start()
 
-        val output = process.inputStream.bufferedReader().readText()
-        val exitCode = process.waitFor()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val exitCode = try {
+            if (process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                process.exitValue()
+            } else {
+                process.destroyForcibly()
+                throw IOException("QEMU daemonize timed out after 30s")
+            }
+        } catch (e: InterruptedException) {
+            process.destroyForcibly()
+            throw IOException("QEMU daemonize interrupted")
+        }
 
         if (exitCode != 0) {
             throw IOException("QEMU daemonize failed (exit=$exitCode): $output")
@@ -324,29 +341,30 @@ class QemuProcessManager(
         pid = extractPidFromOutput(output) ?: -1
         qemuProcess = null  // daemon 模式不持有进程引用
 
-        Log.d(TAG, "QEMU started in daemon mode, reference pid=$pid")
+        Logger.d(TAG, "QEMU started in daemon mode, reference pid=$pid")
     }
 
     private fun startForeground(commandLine: List<String>) {
         val builder = ProcessBuilder(*commandLine.toTypedArray())
         config.workingDirectory?.let { builder.directory(it) }
 
-        qemuProcess = builder
+        val process = builder
             .redirectErrorStream(true)
             .start()
 
-        pid = getPid(qemuProcess!!)
-        setupProcessMonitor(qemuProcess!!)
+        qemuProcess = process
+        pid = getPid(process)
+        setupProcessMonitor(process)
     }
 
     private fun setupProcessMonitor(process: Process) {
         monitorJob = scope.launch {
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
             try {
-                val reader = BufferedReader(InputStreamReader(process.inputStream))
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     line?.let {
-                        Log.d(TAG, "[QEMU stdout] $it")
+                        Logger.d(TAG, "[QEMU stdout] $it")
                         consoleOutput?.invoke(it)
                     }
                 }
@@ -357,15 +375,17 @@ class QemuProcessManager(
 
                 if (exitCode == 0) {
                     _processState.value = ProcessState.EXITED
-                    Log.d(TAG, "QEMU process exited normally (code=$exitCode)")
+                    Logger.d(TAG, "QEMU process exited normally (code=$exitCode)")
                 } else {
                     _processState.value = ProcessState.CRASHED
-                    Log.e(TAG, "QEMU process crashed (exit code=$exitCode)")
+                    Logger.e(TAG, "QEMU process crashed (exit code=$exitCode)")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error monitoring QEMU process", e)
+                Logger.e(TAG, "Error monitoring QEMU process", e)
                 _processState.value = ProcessState.ERROR
                 _running.set(false)
+            } finally {
+                try { reader.close() } catch (_: Exception) {}
             }
         }
     }
@@ -379,7 +399,7 @@ class QemuProcessManager(
      */
     fun stop(force: Boolean = false, timeoutMs: Long = 5000L): Boolean {
         if (!_running.get()) {
-            Log.w(TAG, "QEMU process not running")
+            Logger.w(TAG, "QEMU process not running")
             return true
         }
 
@@ -392,7 +412,7 @@ class QemuProcessManager(
                 gracefulShutdown(timeoutMs)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping QEMU process", e)
+            Logger.e(TAG, "Error stopping QEMU process", e)
             killProcess()
         } finally {
             cleanup()
@@ -423,7 +443,9 @@ class QemuProcessManager(
         if (pid > 0) {
             try {
                 Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString()))
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Logger.w(TAG, "Failed to kill process $pid", e)
+            }
         }
         return true
     }
@@ -469,7 +491,8 @@ class QemuProcessManager(
                 val pidField = process.javaClass.getDeclaredField("pid")
                 pidField.isAccessible = true
                 pidField.getInt(process)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Logger.d("QemuProcessManager", "Could not get process PID via reflection", e)
                 -1
             }
         }

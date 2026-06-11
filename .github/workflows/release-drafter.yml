@@ -5,19 +5,21 @@ on:
     branches:
       - main
       - master
-  pull_request:
-    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   update-release-draft:
     name: Update Release Draft
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
     steps:
       - name: Draft Release Notes
         uses: release-drafter/release-drafter@v6
