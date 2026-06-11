@@ -693,7 +693,7 @@ class DockerDashboardViewModel : ViewModel() {
                         Name = name,
                         Driver = driver,
                         Mountpoint = "/var/lib/docker/volumes/$name/_data",
-                        CreatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(java.util.Date())
+                        CreatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
                     )
                 }
             } catch (e: Exception) {

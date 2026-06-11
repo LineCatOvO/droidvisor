@@ -158,6 +158,7 @@ class AvfCapabilityChecker(private val context: Context) {
      * 该权限通常需要通过 ADB 授予：
      *   adb shell pm grant <package> android.permission.MANAGE_VIRTUAL_MACHINE
      */
+    @Suppress("PrivateApi", "SoonBlockedPrivateApi")
     private fun checkAvfPermission(reasons: MutableList<AvfUnavailableReason>): Boolean {
         return try {
             // 尝试获取 VirtualMachineManager 来验证权限
