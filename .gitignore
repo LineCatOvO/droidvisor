@@ -36,3 +36,9 @@ Thumbs.db
 
 # Build logs
 build.log
+
+# CMake build artifacts
+.cxx/
+
+# Coverage
+*.exec

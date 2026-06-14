@@ -122,14 +122,157 @@
 - **修复**: 在 Dockerfile 的 sdkmanager 命令中添加 `"build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"`；同时创建持久化 SDK 卷 `/workspaces/agent-workspace/.cache/android-sdk` 作为备选方案
 - **发现日期**: 2026-06-14
 
+### P012 — VM 管理刷新按钮无效 [QA 发现]
+- **ID**: P012
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 功能缺陷
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/VmManagementScreen.kt:95
+- **描述**: 刷新按钮的 onClick 仅访问 `vmManagerService?.vmInstances?.let {}`，不执行任何实际操作
+- **建议**: 改为调用实际的刷新方法
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P013 — 系统信息页面显示硬编码假数据 [QA 发现]
+- **ID**: P013
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 功能缺陷
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/SettingsScreen.kt:157-160
+- **描述**: SystemInfoSection 显示硬编码的 "AVF Support: Supported" 等假数据，不反映实际设备状态
+- **建议**: 从 AvfCapabilityChecker 和 Build.VERSION 读取真实数据
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P014 — 备份管理返回按钮无效 [QA 发现]
+- **ID**: P014
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 功能缺陷
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/BackupManagementScreen.kt:52-55
+- **描述**: 返回按钮的 onClick 为空注释 `/* 关闭界面 */`，无法导航返回
+- **建议**: 添加 onBack 回调参数或使用 Navigation 返回
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P015 — 网络配置返回按钮无效 [QA 发现]
+- **ID**: P015
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 功能缺陷
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/NetworkConfigScreen.kt:74-77
+- **描述**: 返回按钮的 onClick 为空注释 `/* 关闭界面 */`，无法导航返回
+- **建议**: 添加 onBack 回调参数或使用 Navigation 返回
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P016 — 终端粘贴功能在 clipboardManager 为 null 时静默失败 [QA 发现]
+- **ID**: P016
+- **状态**: 🔴 打开
+- **严重度**: LOW
+- **类别**: 边界行为
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/TerminalScreen.kt:156-159
+- **描述**: clipboardManager 为 null 时粘贴和复制操作无用户反馈
+- **建议**: 添加 else 分支显示 Toast 提示
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P017 — 终端特殊键 Ctrl+C/D/L 仅在模拟模式下使用硬编码值 [QA 发现]
+- **ID**: P017
+- **状态**: 🔴 打开
+- **严重度**: LOW
+- **类别**: 代码质量
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/TerminalScreen.kt:273-284
+- **描述**: Ctrl+C/D/L 使用 Unicode 控制字符硬编码，无法通过标准键盘输入
+- **建议**: 添加专用按钮或确认触发方式
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P018 — VM 删除无确认对话框 [QA 发现]
+- **ID**: P018
+- **状态**: 🔴 打开
+- **严重度**: HIGH
+- **类别**: 功能缺陷/UX
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/VmManagementScreen.kt:137
+- **描述**: 删除 VM 操作直接执行，无确认对话框，可能导致误删
+- **建议**: 添加确认对话框（复用 DeleteConfirmDialog）
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P019 — Docker 容器删除无确认对话框 [QA 发现]
+- **ID**: P019
+- **状态**: 🔴 打开
+- **严重度**: HIGH
+- **类别**: 功能缺陷/UX
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/DockerDashboardScreen.kt:468,642
+- **描述**: 容器删除直接执行，无确认对话框
+- **建议**: 添加确认对话框
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P020 — Docker 镜像删除无确认对话框 [QA 发现]
+- **ID**: P020
+- **状态**: 🔴 打开
+- **严重度**: HIGH
+- **类别**: 功能缺陷/UX
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/DockerDashboardScreen.kt:755,866
+- **描述**: 镜像删除直接执行，无确认对话框
+- **建议**: 添加确认对话框
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P021 — 设置变更不联动 VM 创建默认值 [QA 发现]
+- **ID**: P021
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 功能缺陷/数据流
+- **文件**: SettingsViewModel.kt ↔ VmTemplate.kt ↔ VmManagementScreen.kt
+- **描述**: 用户在设置中修改的默认内存/CPU 配置不会影响创建 VM 时的模板默认值
+- **建议**: 创建设置→模板默认值的映射逻辑
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P022 — 网络配置保存回调为空 [QA 发现]
+- **ID**: P022
+- **状态**: 🔴 打开
+- **严重度**: HIGH
+- **类别**: 功能缺陷
+- **文件**: app/src/main/java/com/droidvisor/ui/screen/VmManagementScreen.kt:615
+- **描述**: `onSave = { /* 保存网络配置 */ }` 回调为空，网络配置变更无法保存
+- **建议**: 实现网络配置持久化逻辑
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P023 — 设置内存滑块下限与验证器不一致 [QA 发现]
+- **ID**: P023
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 数据一致性
+- **文件**: SettingsScreen.kt:81 vs VmConfigValidator.kt:6
+- **描述**: 设置滑块最小 128MB，但 VmConfigValidator 要求最小 512MB，用户可设置一个无法通过验证的值
+- **建议**: 统一最低内存限制为 512MB
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
+### P024 — Docker 操作错误静默忽略 [QA 发现]
+- **ID**: P024
+- **状态**: 🔴 打开
+- **严重度**: MEDIUM
+- **类别**: 错误处理
+- **文件**: app/src/main/java/com/droidvisor/docker/DockerDashboardViewModel.kt:308-309, 699-700, 717-718, 762-763, 781-782
+- **描述**: 多个 catch 块使用 `// ignore` 忽略异常，用户无法感知操作失败
+- **建议**: 添加错误状态 StateFlow 并在 UI 中显示错误提示
+- **发现日期**: 2026-06-14
+- **发现阶段**: Layer 3 QA
+
 ---
 
 ## 问题统计
 | 状态 | 数量 |
 |------|------|
 | ✅ 已修复 | 3 |
-| 🔴 打开 | 8 |
-| **合计** | **11** |
+| 🔴 打开 | 21 |
+| **合计** | **24** |
 
 ## Layer 2 自动化测试结果
 
