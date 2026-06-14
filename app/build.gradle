@@ -39,9 +39,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.create("release") {
                 storeFile file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "${rootDir}/release.jks")
-                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "droidvisor123"
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
                 keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "droidvisor"
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: "droidvisor123"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: ""
             }
         }
     }

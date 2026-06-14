@@ -30,9 +30,9 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
 # 设置PATH
 ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 
-# 接受Android SDK许可并安装平台工具
+# 接受Android SDK许可并安装平台工具、NDK、Build-Tools
 RUN yes | sdkmanager --licenses || true && \
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
 
 # 配置Gradle Wrapper
 COPY gradle gradle/
