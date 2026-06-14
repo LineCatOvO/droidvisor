@@ -101,11 +101,45 @@
 - **建议**: 添加 `synchronized` 或 `Mutex` 保护
 - **发现日期**: 2026-06-14
 
+### P010 — Kotlin 编译器内部错误导致测试编译失败 [待修复]
+- **ID**: P010
+- **状态**: 🔴 打开
+- **严重度**: HIGH
+- **类别**: D5-问题发现与测试闭环
+- **文件**: app/build.gradle:66 (composeOptions)
+- **描述**: 测试编译 (`compileDebugUnitTestKotlin`) 持续失败，报 Internal Compiler Error: `NoSuchMethodError: IrLazyClass$Companion.<init>`。主代码编译正常。推测原因：Kotlin 1.9.23 + Compose Compiler 1.5.14 版本不匹配（Compose Compiler 1.5.14 标准兼容 Kotlin 1.9.22），尽管使用了 `suppressKotlinVersionCompatibilityCheck` 抑制警告，但可能仍存在 ABI 不兼容。
+- **建议**: 升级 Compose Compiler 到兼容 Kotlin 1.9.23 的版本，或降级 Kotlin 到 1.9.22
+- **发现日期**: 2026-06-14
+- **验证环境**: Docker (Ubuntu 22.04 + OpenJDK 17.0.19 + Gradle 8.6)
+
+### P011 — Dockerfile 缺少 NDK/Build-Tools 预装 [已修复]
+- **ID**: P011
+- **状态**: ✅ 已修复
+- **严重度**: MEDIUM
+- **类别**: D4-规范合规性
+- **文件**: Dockerfile:33-35
+- **描述**: Dockerfile 未预装 NDK 26.1.10909125、Build-Tools 34.0.0、CMake 3.22.1，导致每次 `docker run --rm` 都需要重新下载 ~1.5GB NDK
+- **修复**: 在 Dockerfile 的 sdkmanager 命令中添加 `"build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"`；同时创建持久化 SDK 卷 `/workspaces/agent-workspace/.cache/android-sdk` 作为备选方案
+- **发现日期**: 2026-06-14
+
 ---
 
 ## 问题统计
 | 状态 | 数量 |
 |------|------|
-| ✅ 已修复 | 2 |
-| 🔴 打开 | 7 |
-| **合计** | **9** |
+| ✅ 已修复 | 3 |
+| 🔴 打开 | 8 |
+| **合计** | **11** |
+
+## Layer 2 自动化测试结果
+
+| 类别 | Gradle 目标 | 状态 | 说明 |
+|------|-------------|------|------|
+| Lint 检查 | detekt | ✅ 通过 | BUILD SUCCESSFUL (5m 53s), 999 code smells, 6d 8h debt |
+| Lint 检查 | lintDebug | ✅ 通过 | HTML/SARIF 报告已生成 |
+| Build 构建 | assembleDebug | ✅ 通过 | 62 actionable tasks: 35 executed, 25 from cache |
+| 单元测试 | testDebugUnitTest | ❌ 失败 | Kotlin Internal Compiler Error (P010) |
+| 集成测试 | testDebugUnitTest --tests "*IntegrationTest" | ❌ 跳过 | 依赖单元测试编译 |
+| E2E 测试 | connectedAndroidTest | ❌ 跳过 | 需要物理设备/模拟器 |
+| Prod 构建 | assembleRelease | ❌ 跳过 | 需要签名密钥 |
+| 其他目标 | jacocoTestReport | ❌ 跳过 | 依赖单元测试 |
