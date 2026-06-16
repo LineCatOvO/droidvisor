@@ -59,8 +59,24 @@ data class VmTemplate(
             protectedVm = false
         )
 
-        fun getDefaultTemplates(): List<VmTemplate> {
-            return listOf(DOCKER_HOST, STANDARD_DEBIAN, MINIMAL_ALPINE)
+        fun getDefaultTemplates(
+            defaultMemoryBytes: Long = 512 * 1024 * 1024L,
+            defaultCpuCores: Int = 2
+        ): List<VmTemplate> {
+            return listOf(
+                DOCKER_HOST.copy(
+                    memoryBytes = defaultMemoryBytes.coerceAtLeast(1024 * 1024 * 1024L),
+                    cpuCores = defaultCpuCores.coerceAtLeast(4)
+                ),
+                STANDARD_DEBIAN.copy(
+                    memoryBytes = defaultMemoryBytes,
+                    cpuCores = defaultCpuCores
+                ),
+                MINIMAL_ALPINE.copy(
+                    memoryBytes = defaultMemoryBytes.coerceAtMost(512 * 1024 * 1024L),
+                    cpuCores = defaultCpuCores.coerceAtMost(1)
+                )
+            )
         }
     }
 }

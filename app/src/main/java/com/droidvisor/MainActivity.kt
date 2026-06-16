@@ -36,6 +36,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.droidvisor.datastore.dataStore
+import com.droidvisor.datastore.VmStateDataStore
 import com.droidvisor.docker.DockerDashboardViewModel
 import com.droidvisor.docker.DockerProxyService
 import com.droidvisor.ui.screen.DockerDashboardScreen
@@ -49,9 +50,11 @@ import com.droidvisor.vm.BackupManagerService
 import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.VmManagerService
 import com.droidvisor.vm.vsock.VsockService
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -243,6 +246,7 @@ fun DroidvisorApp(
         val settingsViewModel: SettingsViewModel = viewModel {
             SettingsViewModel(context.dataStore)
         }
+        val vmStateDataStore = remember { VmStateDataStore(context) }
 
         val navItems = listOf(
             NavItem("vm", "虚拟机", Icons.Default.Computer),
@@ -281,9 +285,14 @@ fun DroidvisorApp(
                     modifier = Modifier.padding(paddingValues)
                 ) {
                     composable("vm") {
+                        val memoryBytes by settingsViewModel.memorySize.collectAsState()
+                        val cpuCores by settingsViewModel.cpuCores.collectAsState()
                         VmManagementScreen(
                             vmManagerService = vmManagerService,
-                            backupManagerService = backupManagerService
+                            backupManagerService = backupManagerService,
+                            vmStateDataStore = vmStateDataStore,
+                            defaultMemoryBytes = memoryBytes * 1024 * 1024,
+                            defaultCpuCores = cpuCores
                         )
                     }
                     composable("docker") {

@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -50,6 +53,7 @@ class VsockService : Service() {
     val reconnecting: StateFlow<Boolean> = _reconnecting.asStateFlow()
 
     private var vsockChannel: VsockChannel? = null
+    private val channelMutex = Mutex()
 
     private var avfService: VirtualMachineManagerService? = null
     private var avfBound = false
@@ -106,7 +110,9 @@ class VsockService : Service() {
 
                 Logger.d(TAG, "Connecting to Vsock port $port (Guest CID: $GUEST_CID)")
 
-                vsockChannel = createVsockChannel(port)
+                channelMutex.withLock {
+                    vsockChannel = createVsockChannel(port)
+                }
                 _connectionState.value = VsockConnectionState.CONNECTED
                 _reconnecting.value = false
 
@@ -133,8 +139,10 @@ class VsockService : Service() {
 
                 _connectionState.value = VsockConnectionState.DISCONNECTING
 
-                vsockChannel?.close()
-                vsockChannel = null
+                channelMutex.withLock {
+                    vsockChannel?.close()
+                    vsockChannel = null
+                }
 
                 _connectionState.value = VsockConnectionState.DISCONNECTED
                 Logger.d(TAG, "Vsock connection closed")
@@ -154,7 +162,9 @@ class VsockService : Service() {
                     throw VsockError.NotConnectedError("Not connected to Vsock")
                 }
 
-                vsockChannel?.send((command + "\n").toByteArray())
+                channelMutex.withLock {
+                    vsockChannel?.send((command + "\n").toByteArray())
+                }
                 Logger.d(TAG, "Command sent: $command")
             } catch (e: VsockError) {
                 Logger.e(TAG, "Error sending command", e)
@@ -170,7 +180,9 @@ class VsockService : Service() {
                     throw VsockError.NotConnectedError("Not connected to Vsock")
                 }
 
-                vsockChannel?.send(byteArrayOf(keyCode.toByte()))
+                channelMutex.withLock {
+                    vsockChannel?.send(byteArrayOf(keyCode.toByte()))
+                }
                 Logger.d(TAG, "Special key sent: $keyCode")
             } catch (e: VsockError) {
                 Logger.e(TAG, "Error sending special key", e)
@@ -186,7 +198,9 @@ class VsockService : Service() {
                     throw VsockError.NotConnectedError("Not connected to Vsock")
                 }
 
-                vsockChannel?.send(data)
+                channelMutex.withLock {
+                    vsockChannel?.send(data)
+                }
                 Logger.d(TAG, "Raw data sent: ${data.size} bytes")
             } catch (e: VsockError) {
                 Logger.e(TAG, "Error sending raw data", e)
@@ -195,14 +209,16 @@ class VsockService : Service() {
         }
     }
 
-    fun receive(): ByteArray? {
+    suspend fun receive(): ByteArray? {
         return try {
             if (!_connectionState.value.isConnected()) {
                 throw VsockError.NotConnectedError("Not connected to Vsock")
             }
 
-            vsockChannel?.receive()?.also {
-                Logger.d(TAG, "Received ${it.size} bytes via Vsock")
+            channelMutex.withLock {
+                vsockChannel?.receive()?.also {
+                    Logger.d(TAG, "Received ${it.size} bytes via Vsock")
+                }
             }
         } catch (e: VsockError) {
             Logger.e(TAG, "Error receiving data", e)
@@ -211,13 +227,17 @@ class VsockService : Service() {
         }
     }
 
-    fun getInputStream(): InputStream? {
-        return (vsockChannel as? RealVsockChannel)?.inputStream
+    suspend fun getInputStream(): InputStream? {
+        return channelMutex.withLock {
+            (vsockChannel as? RealVsockChannel)?.inputStream
+        }
     }
 
-    fun getOutputStream(): OutputStream? {
-        return (vsockChannel as? RealVsockChannel)?.outputStream
-            ?: (vsockChannel as? QemuVsockChannelWrapper)?.outputStream
+    suspend fun getOutputStream(): OutputStream? {
+        return channelMutex.withLock {
+            (vsockChannel as? RealVsockChannel)?.outputStream
+                ?: (vsockChannel as? QemuVsockChannelWrapper)?.outputStream
+        }
     }
 
     /**
@@ -263,8 +283,12 @@ class VsockService : Service() {
     }
 
     override fun onDestroy() {
-        vsockChannel?.close()
-        vsockChannel = null
+        runBlocking {
+            channelMutex.withLock {
+                vsockChannel?.close()
+                vsockChannel = null
+            }
+        }
         if (avfBound) {
             unbindService(avfConnection)
             avfBound = false
@@ -319,8 +343,7 @@ private class RealVsockChannel(
     override fun receive(): ByteArray? {
         if (!open) throw VsockError.ReceiveError("Channel is closed")
         try {
-            if (inputStream.available() <= 0) return null
-            val buffer = ByteArray(minOf(inputStream.available(), 65536))
+            val buffer = ByteArray(65536)
             val bytesRead = inputStream.read(buffer)
             return if (bytesRead > 0) buffer.copyOf(bytesRead) else null
         } catch (e: java.io.IOException) {

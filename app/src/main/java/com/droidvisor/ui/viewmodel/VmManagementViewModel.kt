@@ -3,8 +3,10 @@ package com.droidvisor.ui.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.droidvisor.datastore.VmStateDataStore
 import com.droidvisor.vm.VmManagerService
 import com.droidvisor.vm.VmStatus
+import com.droidvisor.vm.model.NetworkConfig
 import com.droidvisor.vm.model.VmInstance
 import com.droidvisor.vm.model.VmTemplate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +32,8 @@ data class VmManagementState(
 }
 
 class VmManagementViewModel(
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val vmStateDataStore: VmStateDataStore? = null
 ) : ViewModel() {
 
     companion object {
@@ -171,5 +174,17 @@ class VmManagementViewModel(
 
     fun clearError() {
         _state.value = _state.value.copy(errorMessage = null)
+    }
+
+    fun saveNetworkConfig(config: NetworkConfig) {
+        viewModelScope.launch {
+            try {
+                vmStateDataStore?.saveNetworkConfig(config)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    errorMessage = "Failed to save network config: ${e.message}"
+                )
+            }
+        }
     }
 }

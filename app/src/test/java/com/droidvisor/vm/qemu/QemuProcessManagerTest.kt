@@ -106,7 +106,7 @@ class QemuProcessManagerTest {
     // ==================== 2. KVM ====================
 
     @Test
-    fun `禁用 KVM 时不包含 enable-kvm`() {
+    fun disableKvm_doesNotContainEnableKvm() {
         val config = createDefaultConfig().copy(enableKvm = false)
         val cmd = QemuProcessManager(config, null, testScope).buildCommandLine()
         assertFalse(cmd.contains("-enable-kvm"))
@@ -144,7 +144,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `内核文件存在时添加 kernel 参数`() {
+    fun existingKernelFile_addsKernelParameter() {
         val kernel = File(tempDir, "kernel.img").also { it.createNewFile() }
         val config = createDefaultConfig().copy(kernelImagePath = kernel.absolutePath)
         val cmd = QemuProcessManager(config, null, testScope).buildCommandLine()
@@ -190,7 +190,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `Tap 网络模式包含 tap 和 ifname`() {
+    fun tapNetworkMode_containsTapAndIfname() {
         val config = createDefaultConfig().copy(
             networkBackend = QemuVmConfig.NetworkBackend.Tap(ifName = "tap0")
         )
@@ -255,7 +255,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `None 模式包含 display none 且保留 serial none`() {
+    fun noneModeContainsDisplayNoneAndPreservesSerialNone() {
         val config = createDefaultConfig().copy(consoleMode = QemuVmConfig.ConsoleMode.None)
         val cmd = QemuProcessManager(config, null, testScope).buildCommandLine()
         // None 模式添加 -display none -serial none
@@ -267,14 +267,14 @@ class QemuProcessManagerTest {
     // ==================== 7. daemonize / 图形模式 ====================
 
     @Test
-    fun `非图形模式包含 daemonize`() {
+    fun nonGraphicModeContainsDaemonize() {
         val config = createDefaultConfig().copy(enableGraphic = false)
         val cmd = QemuProcessManager(config, null, testScope).buildCommandLine()
         assertTrue(cmd.contains("-daemonize"))
     }
 
     @Test
-    fun `图形模式不包含 daemonize 和 nographic`() {
+    fun graphicModeDoesNotContainDaemonizeAndNographic() {
         val config = createDefaultConfig().copy(enableGraphic = true)
         val cmd = QemuProcessManager(config, null, testScope).buildCommandLine()
         assertFalse(cmd.contains("-daemonize"))
@@ -306,7 +306,7 @@ class QemuProcessManagerTest {
     // ==================== 9. extraArgs ====================
 
     @Test
-    fun `extraArgs 追加到命令行末尾`() {
+    fun extraArgs_appendsToEndOfCommandLine() {
         // 使用不与已有参数冲突的唯一标识符
         val extras = listOf("-test-flag-a", "-test-flag-b", "-test-flag-c")
         val config = createDefaultConfig().copy(extraArgs = extras)
@@ -323,7 +323,7 @@ class QemuProcessManagerTest {
     // ==================== 10. getVsockSocketPath ====================
 
     @Test
-    fun `getVsockSocketPath 格式正确`() {
+    fun getVsockSocketPath_hasCorrectFormat() {
         val manager = QemuProcessManager(createDefaultConfig(), null, testScope)
         val path = manager.getVsockSocketPath(2375)
         val expected = "${tempDir.absolutePath}/vsock_2375.sock"
@@ -361,7 +361,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `stop 未运行进程返回 true`() {
+    fun stop_nonRunningProcess_returnsTrue() {
         val mgr = QemuProcessManager(createDefaultConfig(), null, testScope)
         assertTrue(mgr.stop(force = false))
         assertTrue(mgr.stop(force = true))
@@ -407,7 +407,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `多个 Vsock 端口映射生成多个 chardev`() {
+    fun multipleVsockPorts_generateMultipleChardevs() {
         val config = createDefaultConfig().copy(vsockPorts = listOf(
             VsockPortMapping(2375, 2375),
             VsockPortMapping(8080, 8080)
@@ -422,7 +422,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `Tap 网络脚本参数正确传递`() {
+    fun tapNetworkScriptParameters_passedCorrectly() {
         val config = createDefaultConfig().copy(
             networkBackend = QemuVmConfig.NetworkBackend.Tap(
                 ifName = "tap0",
@@ -436,7 +436,7 @@ class QemuProcessManagerTest {
     }
 
     @Test
-    fun `控制台回调正常设置`() {
+    fun consoleCallback_setsCorrectly() {
         val lines = mutableListOf<String>()
         val mgr = QemuProcessManager(createDefaultConfig(), { lines.add(it) }, testScope)
         assertNotNull(mgr)

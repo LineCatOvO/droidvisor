@@ -73,12 +73,22 @@ import com.droidvisor.vm.AvfCapabilityChecker
 import com.droidvisor.vm.BackupManagerService
 import com.droidvisor.vm.VmManagerService
 import com.droidvisor.vm.VmStatus
+import com.droidvisor.vm.model.NetworkConfig
 import com.droidvisor.vm.model.VmInstance
 import com.droidvisor.vm.model.VmTemplate
+import com.droidvisor.datastore.VmStateDataStore
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VmManagementScreen(vmManagerService: VmManagerService?, backupManagerService: BackupManagerService?) {
+fun VmManagementScreen(
+    vmManagerService: VmManagerService?,
+    backupManagerService: BackupManagerService?,
+    vmStateDataStore: VmStateDataStore? = null,
+    defaultMemoryBytes: Long = 512 * 1024 * 1024L,
+    defaultCpuCores: Int = 2
+) {
     val vmInstances by vmManagerService?.vmInstances?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
     val isAvfAvailable by vmManagerService?.isAvfAvailable?.collectAsState() ?: remember { mutableStateOf(false) }
     val avfCapabilities by vmManagerService?.avfCapabilities?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -158,13 +168,16 @@ fun VmManagementScreen(vmManagerService: VmManagerService?, backupManagerService
             onCreate = { name, template, protectedVm ->
                 vmManagerService?.createVm(name, template.copy(protectedVm = protectedVm))
                 showCreateDialog = false
-            }
+            },
+            defaultMemoryBytes = defaultMemoryBytes,
+            defaultCpuCores = defaultCpuCores
         )
     }
 
     VmBackupAndNetworkDialogs(
         selectedVm = selectedVm,
         backupManagerService = backupManagerService,
+        vmStateDataStore = vmStateDataStore,
         showBackupScreen = showBackupScreen,
         showNetworkScreen = showNetworkScreen,
         onDismissBackup = { showBackupScreen = false },
@@ -394,9 +407,14 @@ fun VmInfoChip(icon: ImageVector, text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateVmDialog(onDismiss: () -> Unit, onCreate: (String, VmTemplate, Boolean) -> Unit) {
+fun CreateVmDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String, VmTemplate, Boolean) -> Unit,
+    defaultMemoryBytes: Long = 512 * 1024 * 1024L,
+    defaultCpuCores: Int = 2
+) {
     var vmName by remember { mutableStateOf("") }
-    var selectedTemplate by remember { mutableStateOf(VmTemplate.getDefaultTemplates().first()) }
+    var selectedTemplate by remember { mutableStateOf(VmTemplate.getDefaultTemplates(defaultMemoryBytes, defaultCpuCores).first()) }
     var isProtectedVm by remember { mutableStateOf(true) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -472,7 +490,7 @@ fun CreateVmDialog(onDismiss: () -> Unit, onCreate: (String, VmTemplate, Boolean
                     modifier = Modifier.height(200.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(VmTemplate.getDefaultTemplates()) { template ->
+                    items(VmTemplate.getDefaultTemplates(defaultMemoryBytes, defaultCpuCores)) { template ->
                         TemplateCard(
                             template = template,
                             isSelected = template == selectedTemplate,
@@ -608,6 +626,7 @@ fun VmStatus.displayName(): String = when (this) {
 fun VmBackupAndNetworkDialogs(
     selectedVm: VmInstance?,
     backupManagerService: BackupManagerService?,
+    vmStateDataStore: VmStateDataStore? = null,
     showBackupScreen: Boolean,
     showNetworkScreen: Boolean,
     onDismissBackup: () -> Unit,
@@ -626,7 +645,13 @@ fun VmBackupAndNetworkDialogs(
         NetworkConfigScreen(
             vmId = selectedVm.id,
             vmName = selectedVm.name,
-            onSave = { /* 保存网络配置 */ },
+            onSave = { config ->
+                vmStateDataStore?.let { store ->
+                    GlobalScope.launch {
+                        store.saveNetworkConfig(config)
+                    }
+                }
+            },
             onBack = onDismissNetwork
         )
     }

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.droidvisor.util.Logger
+import com.droidvisor.vm.model.NetworkConfig
 import com.droidvisor.vm.VmStatus
 import com.droidvisor.vm.model.VmInstance
 import com.droidvisor.vm.model.VmTemplate
@@ -34,6 +35,7 @@ class VmStateDataStore(private val context: Context, private val customDataStore
     companion object {
         private val VM_INSTANCES_KEY = stringPreferencesKey("vm_instances")
         private val SELECTED_VM_ID_KEY = stringPreferencesKey("selected_vm_id")
+        private const val NETWORK_CONFIG_PREFIX = "network_config_"
     }
 
     val vmInstancesFlow: Flow<List<VmInstance>> = dataStore.data
@@ -79,6 +81,30 @@ class VmStateDataStore(private val context: Context, private val customDataStore
             preferences.remove(SELECTED_VM_ID_KEY)
         }
     }
+
+    suspend fun saveNetworkConfig(config: NetworkConfig) {
+        val key = stringPreferencesKey("$NETWORK_CONFIG_PREFIX${config.vmId}")
+        dataStore.edit { preferences ->
+            preferences[key] = json.encodeToString(config)
+        }
+        Logger.d(TAG, "Network config saved for VM: ${config.vmId}")
+    }
+
+    fun getNetworkConfigFlow(vmId: String): Flow<NetworkConfig?> = dataStore.data
+        .map { preferences ->
+            val key = stringPreferencesKey("$NETWORK_CONFIG_PREFIX$vmId")
+            val configJson = preferences[key]
+            if (configJson.isNullOrEmpty()) {
+                null
+            } else {
+                try {
+                    json.decodeFromString<NetworkConfig>(configJson)
+                } catch (e: Exception) {
+                    Logger.e(TAG, "Failed to parse network config for VM: $vmId", e)
+                    null
+                }
+            }
+        }
 }
 
 @kotlinx.serialization.Serializable

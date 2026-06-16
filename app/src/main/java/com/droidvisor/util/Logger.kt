@@ -14,6 +14,13 @@ object Logger {
     private var logFile: File? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
+    @Volatile
+    private var debugMode: Boolean = true
+
+    fun setDebugMode(enabled: Boolean) {
+        debugMode = enabled
+    }
+
     enum class LogLevel {
         DEBUG, INFO, WARN, ERROR
     }
@@ -32,7 +39,7 @@ object Logger {
     }
 
     fun d(tag: String, message: String, throwable: Throwable) {
-        log(LogLevel.DEBUG, tag, "$message\n${throwable.stackTraceToString()}")
+        log(LogLevel.DEBUG, tag, if (debugMode) "$message\n${throwable.stackTraceToString()}" else message)
     }
 
     fun i(message: String) {
@@ -52,7 +59,7 @@ object Logger {
     }
 
     fun w(tag: String, message: String, throwable: Throwable) {
-        log(LogLevel.WARN, tag, "$message\n${throwable.stackTraceToString()}")
+        log(LogLevel.WARN, tag, if (debugMode) "$message\n${throwable.stackTraceToString()}" else message)
     }
 
     fun e(message: String) {
@@ -64,11 +71,11 @@ object Logger {
     }
 
     fun e(message: String, throwable: Throwable) {
-        log(LogLevel.ERROR, TAG, "$message\n${throwable.stackTraceToString()}")
+        log(LogLevel.ERROR, TAG, if (debugMode) "$message\n${throwable.stackTraceToString()}" else "$message: ${throwable::class.simpleName}: ${throwable.message}")
     }
 
     fun e(tag: String, message: String, throwable: Throwable) {
-        log(LogLevel.ERROR, tag, "$message\n${throwable.stackTraceToString()}")
+        log(LogLevel.ERROR, tag, if (debugMode) "$message\n${throwable.stackTraceToString()}" else "$message: ${throwable::class.simpleName}: ${throwable.message}")
     }
 
     private fun sanitizeLog(message: String): String {

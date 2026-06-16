@@ -68,7 +68,7 @@ class BackupManagerService : Service() {
 
     override fun onBind(intent: Intent): IBinder = binder
 
-    fun createBackup(
+    suspend fun createBackup(
         vmId: String,
         vmName: String,
         backupName: String,
@@ -106,51 +106,49 @@ class BackupManagerService : Service() {
         _isCreatingBackup.value = true
         _lastError.value = null
 
-        coroutineScope.launch {
-            try {
-                val backupDir = getBackupDirectory()
-                val vmDiskDir = getVmDiskDirectory()
-                val backupFile = File(backupDir, "${backupId}.zip")
+        try {
+            val backupDir = getBackupDirectory()
+            val vmDiskDir = getVmDiskDirectory()
+            val backupFile = File(backupDir, "${backupId}.zip")
 
-                backupDir.mkdirs()
-                vmDiskDir.mkdirs()
+            backupDir.mkdirs()
+            vmDiskDir.mkdirs()
 
-                val diskImageFile = findVmDiskImage(vmId, vmDiskDir)
-                val backupSize = if (diskImageFile != null && diskImageFile.exists()) {
-                    diskImageFile.length()
-                } else {
-                    calculateBackupSize(vmId, type, parentBackupId)
-                }
-
-                _backups.value = _backups.value.map {
-                    if (it.id == backupId) it.copy(sizeBytes = backupSize) else it
-                }
-
-                createBackupArchive(backupId, diskImageFile, backupFile, type, parentBackupId)
-
-                val actualChecksum = calculateFileChecksum(backupFile)
-                val currentBackup = _backups.value.find { it.id == backupId }
-                if (currentBackup != null) {
-                    _backups.value = _backups.value.map {
-                        if (it.id == backupId) it.copy(
-                            status = BackupStatus.AVAILABLE,
-                            checksum = actualChecksum
-                        ) else it
-                    }
-                    verifyBackup(backupId)
-                }
-            } catch (e: Exception) {
-                Logger.e(TAG, "Failed to create backup", e)
-                _lastError.value = "Failed to create backup: ${e.message}"
-                _backups.value = _backups.value.map {
-                    if (it.id == backupId) it.copy(status = BackupStatus.ERROR) else it
-                }
-            } finally {
-                _isCreatingBackup.value = false
+            val diskImageFile = findVmDiskImage(vmId, vmDiskDir)
+            val backupSize = if (diskImageFile != null && diskImageFile.exists()) {
+                diskImageFile.length()
+            } else {
+                calculateBackupSize(vmId, type, parentBackupId)
             }
-        }
 
-        return BackupResult.Success(backup)
+            _backups.value = _backups.value.map {
+                if (it.id == backupId) it.copy(sizeBytes = backupSize) else it
+            }
+
+            createBackupArchive(backupId, diskImageFile, backupFile, type, parentBackupId)
+
+            val actualChecksum = calculateFileChecksum(backupFile)
+            val currentBackup = _backups.value.find { it.id == backupId }
+            if (currentBackup != null) {
+                _backups.value = _backups.value.map {
+                    if (it.id == backupId) it.copy(
+                        status = BackupStatus.AVAILABLE,
+                        checksum = actualChecksum
+                    ) else it
+                }
+                verifyBackup(backupId)
+            }
+            return BackupResult.Success(backup)
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to create backup", e)
+            _lastError.value = "Failed to create backup: ${e.message}"
+            _backups.value = _backups.value.map {
+                if (it.id == backupId) it.copy(status = BackupStatus.ERROR) else it
+            }
+            return BackupResult.Error("Failed to create backup: ${e.message}")
+        } finally {
+            _isCreatingBackup.value = false
+        }
     }
 
     private fun calculateBackupSize(vmId: String, type: BackupType, parentBackupId: String?): Long {

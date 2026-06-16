@@ -24,6 +24,8 @@ import com.droidvisor.vm.model.Backup
 import com.droidvisor.vm.model.BackupStatus
 import com.droidvisor.vm.model.BackupType
 import com.droidvisor.vm.model.VerificationStatus
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import com.droidvisor.ui.components.StatusBadge
 import java.text.SimpleDateFormat
 import java.util.*
@@ -115,7 +117,9 @@ fun BackupManagementScreen(
         CreateBackupDialog(
             onDismiss = { showCreateBackupDialog = false },
             onCreate = { name, desc, type ->
-                backupManagerService?.createBackup(vmId, vmName, name, desc, type)
+                GlobalScope.launch {
+                    backupManagerService?.createBackup(vmId, vmName, name, desc, type)
+                }
                 showCreateBackupDialog = false
             }
         )
