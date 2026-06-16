@@ -58,7 +58,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun getActiveRuntimeType_应返回初始值() {
+    fun getActiveRuntimeType_shouldReturnInitialValue() {
         val runtimeType = service.getActiveRuntimeType()
         assertNotNull(runtimeType)
         assertEquals(VmRuntime.RuntimeType.SIMULATION, runtimeType)
@@ -67,7 +67,7 @@ class VmManagerServiceQemuTest {
     // ========== 2. hasRealRuntime 逻辑测试 ==========
 
     @Test
-    fun hasRealRuntime_AVF未绑定且QEMU不可用_应返回false() {
+    fun hasRealRuntime_avfNotBoundAndQemuUnavailable_shouldReturnFalse() {
         service.setAvfBound(false)
         service.setQemuAvailable(false)
         service.setQemuRuntime(null)
@@ -76,7 +76,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun hasRealRuntime_AVF已绑定_应返回true() {
+    fun hasRealRuntime_avfBound_shouldReturnTrue() {
         service.setAvfBound(true)
         service.setQemuAvailable(false)
         service.setQemuRuntime(null)
@@ -85,7 +85,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun hasRealRuntime_QEMU可用且非空_应返回true() {
+    fun hasRealRuntime_qemuAvailableAndNotNull_shouldReturnTrue() {
         service.setAvfBound(false)
         service.setQemuAvailable(true)
 
@@ -96,7 +96,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun hasRealRuntime_QEMU可用但runtime为空_应返回false() {
+    fun hasRealRuntime_qemuAvailableButRuntimeNull_shouldReturnFalse() {
         service.setAvfBound(false)
         service.setQemuAvailable(true)
         service.setQemuRuntime(null)
@@ -105,7 +105,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun hasRealRuntime_AVF和QEMU都可用_应返回true() {
+    fun hasRealRuntime_avfAndQemuBothAvailable_shouldReturnTrue() {
         service.setAvfBound(true)
         service.setQemuAvailable(true)
         val mockQemuRuntime = QemuVmRuntimeMock()
@@ -117,7 +117,7 @@ class VmManagerServiceQemuTest {
     // ========== 3. QEMU 运行时类型切换测试 ==========
 
     @Test
-    fun startVm_AVF不可用但QEMU可用_应选择QEMU运行时() = kotlinx.coroutines.runBlocking {
+    fun startVm_avfUnavailableButQemuAvailable_shouldUseQemuRuntime() = kotlinx.coroutines.runBlocking {
         service.setAvfBound(false)
         service.setQemuAvailable(true)
         val mockQemuRuntime = QemuVmRuntimeMock()
@@ -132,7 +132,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun startVm_AVF和QEMU都不可用_应选择SIMULATION运行时() = kotlinx.coroutines.runBlocking {
+    fun startVm_avfAndQemuBothUnavailable_shouldUseSimulationRuntime() = kotlinx.coroutines.runBlocking {
         service.setAvfBound(false)
         service.setQemuAvailable(false)
         service.setQemuRuntime(null)
@@ -146,7 +146,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun startVm_AVF已绑定_应优先选择AVF运行时() = kotlinx.coroutines.runBlocking {
+    fun startVm_avfBound_shouldPreferAvfRuntime() = kotlinx.coroutines.runBlocking {
         service.setAvfBound(true)
         service.setQemuAvailable(true)
         val mockQemuRuntime = QemuVmRuntimeMock()
@@ -161,7 +161,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun stopVm_QEMU运行时应调用qemuRuntimeStop() = kotlinx.coroutines.runBlocking {
+    fun stopVm_qemuRuntime_shouldCallQemuRuntimeStop() = kotlinx.coroutines.runBlocking {
         service.setAvfBound(false)
         service.setQemuAvailable(true)
         val mockQemuRuntime = QemuVmRuntimeMock()
@@ -178,7 +178,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun stopVm_SIMULATION运行时不调用qemuRuntimeStop() = kotlinx.coroutines.runBlocking {
+    fun stopVm_simulationRuntime_shouldNotCallQemuRuntimeStop() = kotlinx.coroutines.runBlocking {
         service.setAvfBound(false)
         service.setQemuAvailable(false)
         service.setQemuRuntime(null)
@@ -196,12 +196,12 @@ class VmManagerServiceQemuTest {
     // ========== 4. getQemuRuntime() 测试 ==========
 
     @Test
-    fun getQemuRuntime_初始应返回null() {
+    fun getQemuRuntime_initiallyShouldReturnNull() {
         assertNull(service.getQemuRuntime())
     }
 
     @Test
-    fun getQemuRuntime_设置后应返回非null() {
+    fun getQemuRuntime_afterSetting_shouldReturnNotNull() {
         val mockQemuRuntime = QemuVmRuntimeMock()
         service.setQemuRuntime(mockQemuRuntime)
 
@@ -210,7 +210,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun getQemuRuntime_清除后应返回null() {
+    fun getQemuRuntime_afterClearing_shouldReturnNull() {
         val mockQemuRuntime = QemuVmRuntimeMock()
         service.setQemuRuntime(mockQemuRuntime)
         assertNotNull(service.getQemuRuntime())
@@ -222,12 +222,12 @@ class VmManagerServiceQemuTest {
     // ========== 5. isQemuAvailable StateFlow 测试 ==========
 
     @Test
-    fun isQemuAvailable_初始值应为false() {
+    fun isQemuAvailable_initiallyShouldBeFalse() {
         assertFalse(service.isQemuAvailable.value)
     }
 
     @Test
-    fun isQemuAvailable_设置后应更新状态() {
+    fun isQemuAvailable_afterSetting_shouldUpdateState() {
         service.setQemuAvailable(true)
         assertTrue(service.isQemuAvailable.value)
 
@@ -236,7 +236,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun isQemuAvailable_应暴露为StateFlow() {
+    fun isQemuAvailable_shouldExposeAsStateFlow() {
         val stateFlow: StateFlow<Boolean> = service.isQemuAvailable
         assertNotNull(stateFlow)
         assertFalse(stateFlow.value)
@@ -245,7 +245,7 @@ class VmManagerServiceQemuTest {
     // ========== 6. ActiveVmContext 数据类测试 ==========
 
     @Test
-    fun ActiveVmContext_默认cpuUsage应为0f() {
+    fun activeVmContext_defaultCpuUsageShouldBeZero() {
         val context = ActiveVmContext(
             vmId = "test-vm-id",
             startedAt = System.currentTimeMillis()
@@ -254,7 +254,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun ActiveVmContext_默认memoryUsage应为0L() {
+    fun activeVmContext_defaultMemoryUsageShouldBeZero() {
         val context = ActiveVmContext(
             vmId = "test-vm-id",
             startedAt = System.currentTimeMillis()
@@ -293,7 +293,7 @@ class VmManagerServiceQemuTest {
     // ========== 7. 运行时优先级顺序测试 ==========
 
     @Test
-    fun runtimePriority_AVF优先级最高() = kotlinx.coroutines.runBlocking {
+    fun runtimePriority_avfHasHighestPriority() = kotlinx.coroutines.runBlocking {
         // AVF 和 QEMU 都可用时，应选择 AVF
         service.setAvfBound(true)
         service.setQemuAvailable(true)
@@ -308,7 +308,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun runtimePriority_QEMU次之() = kotlinx.coroutines.runBlocking {
+    fun runtimePriority_qemuIsSecondPriority() = kotlinx.coroutines.runBlocking {
         // AVF 不可用，QEMU 可用时，应选择 QEMU
         service.setAvfBound(false)
         service.setQemuAvailable(true)
@@ -323,7 +323,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun runtimePriority_SIMULATION最低() = kotlinx.coroutines.runBlocking {
+    fun runtimePriority_simulationIsLowestPriority() = kotlinx.coroutines.runBlocking {
         // 都不可用时，应选择 SIMULATION
         service.setAvfBound(false)
         service.setQemuAvailable(false)
@@ -337,7 +337,7 @@ class VmManagerServiceQemuTest {
     }
 
     @Test
-    fun runtimePriority_完整优先级链AVF_QEMU_SIMULATION() = kotlinx.coroutines.runBlocking {
+    fun runtimePriority_fullPriorityChainAvfQemuSimulation() = kotlinx.coroutines.runBlocking {
         // 测试完整的优先级链：AVF > QEMU > SIMULATION
 
         // 场景1：只有 SIMULATION 可用
