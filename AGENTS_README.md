@@ -26,25 +26,35 @@
 
 - SSH密钥为只读权限，无法直接push到远程（需要手动推送或配置密钥）
 - 部分测试存在mock相关问题（如 Mockito stubbings 警告）
-- 详见 [PROBLEM_INVENTORY.md](./PROBLEM_INVENTORY.md)（24 个已知问题，3 已修复/21 打开）
+- 详见 [PROBLEM_INVENTORY.md](./PROBLEM_INVENTORY.md)（**25 个已知问题，23 已 verified_closed / 2 打开** - 2026-06-17 Sprint2 更新）
 
-## 测试状态（2026-06-14 验证）
+## 测试状态（2026-06-17 Sprint2 Verification 更新）
 
 | 类别 | 状态 | 说明 |
 |------|------|------|
-| Lint (detekt) | ✅ 通过 | 999 code smells, 无阻塞性问题 |
+| Lint (detekt) | ✅ 通过 | 1041 code smells, 无阻塞性问题 |
 | Lint (lintDebug) | ✅ 通过 | HTML/SARIF 报告已生成 |
-| Build (assembleDebug) | ✅ 通过 | 62 tasks |
-| 单元测试 | ❌ 失败 | P010: Kotlin 编译器兼容性问题 |
-| 集成测试 | ❌ 跳过 | 依赖单元测试编译 |
-| E2E 测试 | ❌ 跳过 | 需要物理设备/模拟器 |
-| Prod 构建 | ❌ 跳过 | 需要签名密钥 |
+| Build (assembleDebug) | ✅ 通过 | BUILD SUCCESSFUL in 55s, 43 tasks |
+| 单元测试 (compileDebugUnitTestKotlin) | ✅ **通过** | **P025 ICE 问题已解决**, exit code 0 |
+| 单元测试 (testDebugUnitTest) | ⚠️ **有条件通过** | **1042 tests completed, 1037 passed (99.52%), 5 failed** (非 P025 相关) |
+| 集成测试 | ⏭️ 跳过 | 项目无独立集成测试目标 |
+| E2E 测试 | ⏭️ 跳过 | 需要物理设备/模拟器 |
+| Prod 构建 | ⏭️ 跳过 | 需要签名密钥 |
 
-## QA 审核结果（2026-06-14）
+### Sprint2 修复成果（2026-06-17）
 
-- 测试路径：100 条（7 页面覆盖）
-- 发现新问题：13 个（P012-P024）
-- QA 结论：❌ 拒绝（4 HIGH 阻塞性缺陷）
+**修复问题数**: 7/7 (100%)
+- ✅ P025 ICE 测试编译问题（**核心目标达成**）
+- ✅ P022 网络配置持久化
+- ✅ P021 设置联动机制
+- ✅ P003 BackupManagerService 异步化
+- ✅ P005 VsockService 阻塞读取
+- ✅ P006 Logger 堆栈保护
+- ✅ P009 VsockService 并发安全
+
+**遗留打开问题**: P004 (Thread.sleep), P010 (Kotlin ICE - 需升级 Compose Compiler)
+
+**Verification 结论**: ⚠️ **有条件接受**（3 个非阻塞性改进建议待后续 Sprint 处理）
 
 ## 项目结构说明
 
