@@ -75,6 +75,13 @@ class DockerDashboardViewModel : ViewModel() {
     private val _expandedContainerId = MutableStateFlow<String?>(null)
     val expandedContainerId: StateFlow<String?> = _expandedContainerId.asStateFlow()
 
+    private val _errorState = MutableStateFlow<String?>(null)
+    val errorState: StateFlow<String?> = _errorState.asStateFlow()
+
+    fun clearError() {
+        _errorState.value = null
+    }
+
     private val _imageCleanupSuggestions = MutableStateFlow<Map<String, Long>>(emptyMap())
     val imageCleanupSuggestions: StateFlow<Map<String, Long>> = _imageCleanupSuggestions.asStateFlow()
 
@@ -306,7 +313,7 @@ class DockerDashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // ignore
+                _errorState.value = "镜像拉取失败: ${e.message}"
             }
             _isLoading.value = false
         }
@@ -697,7 +704,7 @@ class DockerDashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // ignore
+                _errorState.value = "镜像拉取失败: ${e.message}"
             }
         }
     }
@@ -715,7 +722,7 @@ class DockerDashboardViewModel : ViewModel() {
                     _volumes.value = _volumes.value.filter { it.Name != name }
                 }
             } catch (e: Exception) {
-                // ignore
+                _errorState.value = "镜像拉取失败: ${e.message}"
             }
         }
     }
@@ -761,7 +768,7 @@ class DockerDashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // ignore
+                _errorState.value = "镜像拉取失败: ${e.message}"
             }
         }
     }
@@ -779,7 +786,7 @@ class DockerDashboardViewModel : ViewModel() {
                     _networks.value = _networks.value.filter { it.Id != id }
                 }
             } catch (e: Exception) {
-                // ignore
+                _errorState.value = "镜像拉取失败: ${e.message}"
             }
         }
     }

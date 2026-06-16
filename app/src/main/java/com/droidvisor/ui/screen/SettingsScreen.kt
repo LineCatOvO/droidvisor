@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.droidvisor.ui.viewmodel.SettingsViewModel
+import com.droidvisor.vm.AvfCapabilityChecker
+import android.os.Build
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
@@ -77,7 +79,7 @@ fun VmSettingsSection(
             Slider(
                 value = memorySize.toFloat(),
                 onValueChange = { onMemoryChange(it.toLong()) },
-                valueRange = 128f..2048f,
+                valueRange = 512f..2048f,
                 steps = 7,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -139,6 +141,9 @@ fun DockerSettingsSection(
 
 @Composable
 fun SystemInfoSection() {
+    val avfChecker = remember { AvfCapabilityChecker() }
+    val capabilities = remember { avfChecker.checkCapabilities() }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -154,10 +159,22 @@ fun SystemInfoSection() {
                 fontWeight = FontWeight.Bold
             )
 
-            Text(text = "AVF Support: Supported", modifier = Modifier.padding(top = 12.dp))
-            Text(text = "Protected VM: Enabled", modifier = Modifier.padding(top = 4.dp))
-            Text(text = "Device: Android 13+", modifier = Modifier.padding(top = 4.dp))
-            Text(text = "droidvisor Version: 1.0.0", modifier = Modifier.padding(top = 4.dp))
+            Text(
+                text = "AVF Support: ${if (capabilities.isAvfAvailable) "Supported" else "Not Available"}",
+                modifier = Modifier.padding(top = 12.dp)
+            )
+            Text(
+                text = "Protected VM: ${if (capabilities.isProtectedVmSupported) "Enabled" else "Not Supported"}",
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Text(
+                text = "Device: Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Text(
+                text = "droidvisor Version: 1.0.0",
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }

@@ -46,6 +46,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import com.droidvisor.ui.components.SimulationModeBanner
 import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.vsock.VsockService
@@ -73,6 +75,7 @@ fun TerminalScreen(
     val isVmRunning = remember { mutableStateOf(false) }
     var fontSize by remember { mutableIntStateOf(DEFAULT_FONT_SIZE) }
     val clipboardManager = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         outputLines.add("Welcome to Droidvisor Terminal")
@@ -151,11 +154,23 @@ fun TerminalScreen(
                 onClear = { outputLines.clear() },
                 onCopy = {
                     val textToCopy = outputLines.joinToString("\n")
-                    clipboardManager?.setText(AnnotatedString(textToCopy))
+                    if (clipboardManager != null) {
+                        clipboardManager.setText(AnnotatedString(textToCopy))
+                    } else {
+                        kotlinx.coroutines.GlobalScope.launch {
+                            snackbarHostState.showSnackbar("剪贴板不可用")
+                        }
+                    }
                 },
                 onPaste = {
-                    clipboardManager?.getText()?.text?.let { pastedText ->
-                        inputText.value = pastedText
+                    if (clipboardManager != null) {
+                        clipboardManager.getText()?.text?.let { pastedText ->
+                            inputText.value = pastedText
+                        }
+                    } else {
+                        kotlinx.coroutines.GlobalScope.launch {
+                            snackbarHostState.showSnackbar("剪贴板不可用")
+                        }
                     }
                 },
                 fontSize = fontSize,
@@ -167,6 +182,16 @@ fun TerminalScreen(
                 onFontSizeDecrease = {
                     if (fontSize > MIN_FONT_SIZE) {
                         fontSize -= FONT_SIZE_STEP
+                    }
+                },
+                onSendSpecialKey = { specialKey ->
+                    if (specialKey.isNotEmpty()) {
+                        executeCommand(
+                            specialKey,
+                            outputLines,
+                            commandHistory,
+                            vsockService
+                        )
                     }
                 }
             )
@@ -215,6 +240,8 @@ fun TerminalScreen(
                 listState.animateScrollToItem(outputLines.size - 1)
             }
         }
+
+        SnackbarHost(hostState = snackbarHostState)
     }
 }
 
@@ -227,7 +254,8 @@ fun TerminalToolbar(
     onPaste: () -> Unit,
     fontSize: Int = DEFAULT_FONT_SIZE,
     onFontSizeIncrease: () -> Unit,
-    onFontSizeDecrease: () -> Unit
+    onFontSizeDecrease: () -> Unit,
+    onSendSpecialKey: (String) -> Unit = {}
 ) {
     androidx.compose.material3.TopAppBar(
         title = {},
@@ -246,6 +274,27 @@ fun TerminalToolbar(
             IconButton(onClick = onFontSizeIncrease) {
                 Icon(Icons.Default.TextIncrease, contentDescription = "Increase font size")
             }
+
+            // 特殊键按钮（P017 修复）
+            androidx.compose.material3.TextButton(
+                onClick = { onSendSpecialKey("\u0003") },
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                Text("Ctrl+C", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            }
+            androidx.compose.material3.TextButton(
+                onClick = { onSendSpecialKey("\u0004") },
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                Text("Ctrl+D", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            }
+            androidx.compose.material3.TextButton(
+                onClick = { onSendSpecialKey("\u000C") },
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                Text("Ctrl+L", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            }
+
             IconButton(onClick = onClear) {
                 Icon(Icons.Default.Clear, contentDescription = "Clear")
             }

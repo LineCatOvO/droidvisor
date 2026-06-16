@@ -1,5 +1,34 @@
 @file:Suppress("NewApi")
 
+/**
+ * VirtualMachineManagerService - Android AVF 虚拟机管理服务
+ *
+ * ## 反射 API 兼容性说明（P008）
+ *
+ * 本服务使用反射访问 Android 系统虚拟化框架（AVF）的内部 API：
+ * - `android.system.virtualmachine.VirtualMachineManager` (API 34+)
+ * - `android.system.virtualmachine.VirtualMachine` (API 34+)
+ * - `android.system.virtualmachine.VirtualMachineConfig` (API 34+)
+ *
+ * **兼容性要求**:
+ * - 最低 SDK 版本: API 34 (Android 14)
+ * - 目标设备: 支持 AVF 的 Android 设备（Pixel 8+、部分 OEM 设备）
+ * - 反射缓存机制: ReflectCache 对象延迟加载并缓存反射结果，避免运行时性能损耗
+ *
+ * **版本监控**:
+ * - 使用 @RequiresApi(34) 注解强制编译时检查
+ * - 运行时通过 Class.forName() 安全加载，失败时 gracefully degrade
+ * - 所有反射调用均有 try-catch 保护，防止应用崩溃
+ *
+ * **风险提示**:
+ * - 反射 API 可能在未来 Android 版本中变更或移除
+ * - 建议在每个主要 Android 版本发布后验证兼容性
+ * - 生产环境应考虑使用官方 AVF API（当稳定版可用时）
+ *
+ * @see android.system.virtualmachine.VirtualMachineManager
+ * @see AvfCapabilityChecker
+ */
+
 package com.droidvisor.vm
 
 import android.annotation.SuppressLint

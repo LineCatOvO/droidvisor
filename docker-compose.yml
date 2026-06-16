@@ -17,11 +17,11 @@ services:
     networks:
       - droidvisor-test-network
     healthcheck:
-      test: ["CMD", "bash", "-c", "ps aux | grep -v grep | grep gradle"]
-      interval: 5s
+      test: ["CMD", "bash", "-c", "test -f /usr/lib/jvm/java-17-openjdk-amd64/bin/java && java -version 2>&1 | head -1"]
+      interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
 networks:
   droidvisor-test-network:

@@ -96,9 +96,36 @@ fun DockerDashboardScreen(viewModel: DockerDashboardViewModel) {
     val isConnected by viewModel.isConnected.collectAsState()
     val vsockConnected by viewModel.vsockConnected.collectAsState()
     val daemonHealthy by viewModel.daemonHealthy.collectAsState()
+    val errorMessage by viewModel.errorState.collectAsState()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            if (errorMessage != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = Color.Red.copy(alpha = 0.1f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(errorMessage, color = Color.Red, fontWeight = FontWeight.Medium)
+                        }
+                        TextButton(onClick = { viewModel.clearError() }) {
+                            Text("关闭", color = Color.Red)
+                        }
+                    }
+                }
+            }
+
             if (!isConnected || !daemonHealthy) {
                 ConnectionStatusBanner(
                     isConnected = isConnected,
@@ -427,6 +454,7 @@ fun DockerContainersTab(viewModel: DockerDashboardViewModel, onNavigateToImages:
     val expandedContainerId by viewModel.expandedContainerId.collectAsState()
     var showLogsDialog by remember { mutableStateOf(false) }
     var logsContainerId by remember { mutableStateOf<String?>(null) }
+    var showContainerDeleteConfirm by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -465,7 +493,7 @@ fun DockerContainersTab(viewModel: DockerDashboardViewModel, onNavigateToImages:
                     onStop = { viewModel.stopContainer(container.Id) },
                     onPause = { viewModel.pauseContainer(container.Id) },
                     onUnpause = { viewModel.unpauseContainer(container.Id) },
-                    onRemove = { viewModel.removeContainer(container.Id) },
+                    onRemove = { showContainerDeleteConfirm = container.Id },
                     onViewLogs = {
                         logsContainerId = container.Id
                         viewModel.fetchContainerLogs(container.Id)
@@ -483,6 +511,18 @@ fun DockerContainersTab(viewModel: DockerDashboardViewModel, onNavigateToImages:
             containerId = logsContainerId!!,
             viewModel = viewModel,
             onDismiss = { showLogsDialog = false }
+        )
+    }
+
+    if (showContainerDeleteConfirm != null) {
+        DeleteConfirmDialog(
+            itemName = showContainerDeleteConfirm!!,
+            itemType = "容器",
+            onConfirm = {
+                viewModel.removeContainer(showContainerDeleteConfirm!!)
+                showContainerDeleteConfirm = null
+            },
+            onDismiss = { showContainerDeleteConfirm = null }
         )
     }
 }
@@ -654,6 +694,7 @@ fun DockerImagesTab(viewModel: DockerDashboardViewModel) {
     val pullProgress by viewModel.pullProgress.collectAsState()
     var showPullDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
+    var showImageDeleteConfirm by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -752,7 +793,7 @@ fun DockerImagesTab(viewModel: DockerDashboardViewModel) {
             items(images) { image ->
                 ImageCard(
                     image = image,
-                    onRemove = { viewModel.removeImage(image.name, image.tag) }
+                    onRemove = { showImageDeleteConfirm = Pair(image.name, image.tag) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -773,6 +814,18 @@ fun DockerImagesTab(viewModel: DockerDashboardViewModel) {
         ImageCleanupDialog(
             viewModel = viewModel,
             onDismiss = { showCleanupDialog = false }
+        )
+    }
+
+    if (showImageDeleteConfirm != null) {
+        DeleteConfirmDialog(
+            itemName = "${showImageDeleteConfirm!!.first}:${showImageDeleteConfirm!!.second}",
+            itemType = "镜像",
+            onConfirm = {
+                viewModel.removeImage(showImageDeleteConfirm!!.first, showImageDeleteConfirm!!.second)
+                showImageDeleteConfirm = null
+            },
+            onDismiss = { showImageDeleteConfirm = null }
         )
     }
 }

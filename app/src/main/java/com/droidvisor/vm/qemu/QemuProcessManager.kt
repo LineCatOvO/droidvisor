@@ -419,20 +419,20 @@ class QemuProcessManager(
         }
     }
 
-    private fun gracefulShutdown(timeoutMs: Long): Boolean {
+    private suspend fun gracefulShutdown(timeoutMs: Long): Boolean {
         // 尝试通过 QMP 发送 quit 命令（如果 QMP socket 存在）
         // 回退到 SIGTERM
         val process = qemuProcess
         if (process != null && process.isAlive) {
             process.destroy()  // SIGTERM
-            Thread.sleep(minOf(timeoutMs, 3000))
+            kotlinx.coroutines.delay(minOf(timeoutMs, 3000))
             if (process.isAlive) {
                 process.destroyForcibly()  // SIGKILL
             }
         } else if (pid > 0) {
             // daemon 模式，通过 PID 终止
             Runtime.getRuntime().exec(arrayOf("kill", pid.toString()))
-            Thread.sleep(minOf(timeoutMs, 2000))
+            kotlinx.coroutines.delay(minOf(timeoutMs, 2000))
             Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString()))
         }
         return true

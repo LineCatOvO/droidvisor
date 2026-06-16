@@ -33,7 +33,8 @@ import java.util.*
 fun BackupManagementScreen(
     vmId: String,
     vmName: String,
-    backupManagerService: BackupManagerService?
+    backupManagerService: BackupManagerService?,
+    onBack: () -> Unit = {}
 ) {
     val backups by backupManagerService?.backups?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
     val isCreatingBackup by backupManagerService?.isCreatingBackup?.collectAsState() ?: remember { mutableStateOf(false) }
@@ -49,7 +50,7 @@ fun BackupManagementScreen(
             TopAppBar(
                 title = { Text("$vmName 的备份") },
                 navigationIcon = {
-                    IconButton(onClick = { /* 关闭界面 */ }) {
+                    IconButton(onClick = onBack) {
                         @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }

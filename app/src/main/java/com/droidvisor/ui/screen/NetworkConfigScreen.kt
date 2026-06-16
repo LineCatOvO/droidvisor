@@ -31,7 +31,8 @@ fun NetworkConfigScreen(
     vmId: String,
     vmName: String,
     initialConfig: NetworkConfig = NetworkConfig(vmId = ""),
-    onSave: (NetworkConfig) -> Unit
+    onSave: (NetworkConfig) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     var networkMode by remember { mutableStateOf(initialConfig.mode) }
     var ipv4Address by remember { mutableStateOf(initialConfig.ipv4Address ?: "") }
@@ -71,7 +72,7 @@ fun NetworkConfigScreen(
             TopAppBar(
                 title = { Text("$vmName 网络配置") },
                 navigationIcon = {
-                    IconButton(onClick = { /* 关闭界面 */ }) {
+                    IconButton(onClick = onBack) {
                         @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }

@@ -51,7 +51,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
-        freeCompilerArgs += ['-P', 'plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=1.9.23']
     }
     buildFeatures {
         compose true
@@ -63,7 +62,7 @@ android {
         }
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.14'
+        kotlinCompilerExtensionVersion '1.5.13'
     }
     packagingOptions {
         resources {

@@ -86,13 +86,14 @@ fun VmManagementScreen(vmManagerService: VmManagerService?, backupManagerService
     var selectedVm by remember { mutableStateOf<VmInstance?>(null) }
     var showBackupScreen by remember { mutableStateOf(false) }
     var showNetworkScreen by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf<VmInstance?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("虚拟机管理") },
                 actions = {
-                    IconButton(onClick = { vmManagerService?.vmInstances?.let {} }) {
+                    IconButton(onClick = { vmManagerService?.refreshVmList() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "刷新")
                     }
                 }
@@ -134,7 +135,7 @@ fun VmManagementScreen(vmManagerService: VmManagerService?, backupManagerService
                                 onStart = { vmManagerService?.startVm(vm.id) },
                                 onStop = { vmManagerService?.stopVm(vm.id) },
                                 onRestart = { vmManagerService?.restartVm(vm.id) },
-                                onDelete = { vmManagerService?.deleteVm(vm.id) },
+                                onDelete = { showDeleteConfirm = vm },
                                 onBackup = {
                                     selectedVm = vm
                                     showBackupScreen = true
@@ -169,6 +170,18 @@ fun VmManagementScreen(vmManagerService: VmManagerService?, backupManagerService
         onDismissBackup = { showBackupScreen = false },
         onDismissNetwork = { showNetworkScreen = false }
     )
+
+    if (showDeleteConfirm != null) {
+        DeleteConfirmDialog(
+            itemName = showDeleteConfirm!!.name,
+            itemType = "虚拟机",
+            onConfirm = {
+                vmManagerService?.deleteVm(showDeleteConfirm!!.id)
+                showDeleteConfirm = null
+            },
+            onDismiss = { showDeleteConfirm = null }
+        )
+    }
 }
 
 @Composable
@@ -604,7 +617,8 @@ fun VmBackupAndNetworkDialogs(
         BackupManagementScreen(
             vmId = selectedVm.id,
             vmName = selectedVm.name,
-            backupManagerService = backupManagerService
+            backupManagerService = backupManagerService,
+            onBack = onDismissBackup
         )
     }
 
@@ -612,7 +626,8 @@ fun VmBackupAndNetworkDialogs(
         NetworkConfigScreen(
             vmId = selectedVm.id,
             vmName = selectedVm.name,
-            onSave = { /* 保存网络配置 */ }
+            onSave = { /* 保存网络配置 */ },
+            onBack = onDismissNetwork
         )
     }
 }
