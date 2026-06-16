@@ -14,6 +14,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -141,7 +143,8 @@ fun DockerSettingsSection(
 
 @Composable
 fun SystemInfoSection() {
-    val avfChecker = remember { AvfCapabilityChecker() }
+    val context = LocalContext.current
+    val avfChecker = remember { AvfCapabilityChecker(context) }
     val capabilities = remember { avfChecker.checkCapabilities() }
 
     Card(
@@ -160,7 +163,7 @@ fun SystemInfoSection() {
             )
 
             Text(
-                text = "AVF Support: ${if (capabilities.isAvfAvailable) "Supported" else "Not Available"}",
+                text = "AVF Support: ${if (capabilities.isAvfSupported) "Supported" else "Not Available"}",
                 modifier = Modifier.padding(top = 12.dp)
             )
             Text(

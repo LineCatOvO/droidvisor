@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +54,7 @@ import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.vsock.VsockService
 import com.droidvisor.vm.vsock.isConnected
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val MIN_FONT_SIZE = 10
@@ -76,6 +78,7 @@ fun TerminalScreen(
     var fontSize by remember { mutableIntStateOf(DEFAULT_FONT_SIZE) }
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         outputLines.add("Welcome to Droidvisor Terminal")
@@ -157,7 +160,7 @@ fun TerminalScreen(
                     if (clipboardManager != null) {
                         clipboardManager.setText(AnnotatedString(textToCopy))
                     } else {
-                        kotlinx.coroutines.GlobalScope.launch {
+                        coroutineScope.launch {
                             snackbarHostState.showSnackbar("剪贴板不可用")
                         }
                     }
@@ -168,7 +171,7 @@ fun TerminalScreen(
                             inputText.value = pastedText
                         }
                     } else {
-                        kotlinx.coroutines.GlobalScope.launch {
+                        coroutineScope.launch {
                             snackbarHostState.showSnackbar("剪贴板不可用")
                         }
                     }

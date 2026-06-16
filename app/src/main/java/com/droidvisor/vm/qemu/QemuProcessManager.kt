@@ -409,7 +409,7 @@ class QemuProcessManager(
             if (force) {
                 killProcess()
             } else {
-                gracefulShutdown(timeoutMs)
+                kotlinx.coroutines.runBlocking { gracefulShutdown(timeoutMs) }
             }
         } catch (e: Exception) {
             Logger.e(TAG, "Error stopping QEMU process", e)

@@ -704,7 +704,7 @@ class DockerDashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                _errorState.value = "镜像拉取失败: ${e.message}"
+                _errorState.value = "卷创建失败: ${e.message}"
             }
         }
     }
@@ -722,7 +722,7 @@ class DockerDashboardViewModel : ViewModel() {
                     _volumes.value = _volumes.value.filter { it.Name != name }
                 }
             } catch (e: Exception) {
-                _errorState.value = "镜像拉取失败: ${e.message}"
+                _errorState.value = "卷删除失败: ${e.message}"
             }
         }
     }
@@ -768,7 +768,7 @@ class DockerDashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                _errorState.value = "镜像拉取失败: ${e.message}"
+                _errorState.value = "网络创建失败: ${e.message}"
             }
         }
     }
@@ -786,7 +786,7 @@ class DockerDashboardViewModel : ViewModel() {
                     _networks.value = _networks.value.filter { it.Id != id }
                 }
             } catch (e: Exception) {
-                _errorState.value = "镜像拉取失败: ${e.message}"
+                _errorState.value = "网络删除失败: ${e.message}"
             }
         }
     }

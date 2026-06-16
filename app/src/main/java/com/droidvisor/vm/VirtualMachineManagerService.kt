@@ -206,6 +206,21 @@ class VirtualMachineManagerService : Service() {
         this.protectedVm = protectedVm
     }
 
+    /**
+     * 刷新VM列表和状态信息（P012修复）
+     * 重新初始化AVF并更新状态流
+     */
+    fun refreshVmList() {
+        coroutineScope.launch {
+            try {
+                initAvf()
+                Logger.i(TAG, "VM list refreshed")
+            } catch (e: Exception) {
+                Logger.e(TAG, "Failed to refresh VM list", e)
+            }
+        }
+    }
+
     fun startVm() {
         startForegroundIfNeeded()
         coroutineScope.launch {

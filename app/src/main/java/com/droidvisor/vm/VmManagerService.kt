@@ -178,6 +178,22 @@ class VmManagerService : Service() {
         }
     }
 
+    /**
+     * 刷新VM列表（P012修复）
+     * 重新从DataStore加载VM实例并更新状态流
+     */
+    fun refreshVmList() {
+        coroutineScope.launch {
+            try {
+                val savedInstances = vmStateDataStore.vmInstancesFlow.first()
+                _vmInstances.value = savedInstances
+                Logger.i(TAG, "VM list refreshed: ${savedInstances.size} instances")
+            } catch (e: Exception) {
+                Logger.e(TAG, "Failed to refresh VM list", e)
+            }
+        }
+    }
+
     fun startVm(vmId: String) {
         startForegroundIfNeeded()
         coroutineScope.launch {

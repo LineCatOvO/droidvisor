@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -117,7 +118,7 @@ fun DockerDashboardScreen(viewModel: DockerDashboardViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(errorMessage, color = Color.Red, fontWeight = FontWeight.Medium)
+                            Text(errorMessage ?: "未知错误", color = Color.Red, fontWeight = FontWeight.Medium)
                         }
                         TextButton(onClick = { viewModel.clearError() }) {
                             Text("关闭", color = Color.Red)
