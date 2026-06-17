@@ -4,6 +4,7 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
     id 'io.gitlab.arturbosch.detekt'
     id 'jacoco'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
@@ -30,8 +31,9 @@ android {
     buildTypes {
         debug {
             debuggable true
-            testCoverageEnabled true
             minifyEnabled false
+            enableUnitTestCoverage true
+            enableAndroidTestCoverage true
         }
         release {
             minifyEnabled true
@@ -60,9 +62,6 @@ android {
             path file('src/main/cpp/CMakeLists.txt')
             version '3.22.1'
         }
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.13'
     }
     packagingOptions {
         resources {
