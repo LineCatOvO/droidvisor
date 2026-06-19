@@ -62,9 +62,9 @@
 
 ## 环境要求
 
-- Android SDK 34
+- Android SDK 35
 - Java JDK 17+
-- Gradle 8.5
+- Gradle 9.4.1
 
 ## 构建
 

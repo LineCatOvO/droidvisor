@@ -7,7 +7,7 @@
 ### 1. 环境要求
 - Android SDK 34+
 - Java JDK 17+
-- Gradle 8.5 (或使用项目自带的 gradlew)
+- Gradle 9.4.1 (或使用项目自带的 gradlew)
 
 ### 2. 克隆项目
 ```bash
@@ -29,10 +29,7 @@ cd droidvisor
 
 ## 分支管理
 
-- `main` - 生产版本
-- `develop` - 开发分支
-- `feature/*` - 功能分支
-- `fix/*` - 修复分支
+- `agent-develop` - 唯一开发分支（所有开发在此分支进行）
 
 ## 提交规范
 
@@ -83,4 +80,4 @@ Closes #123
 
 ## 许可证
 
-提交代码即表示您同意将代码按照项目许可证 (MIT) 发布。
+提交代码即表示您同意将代码按照项目许可证 (AGPL-3.0) 发布。

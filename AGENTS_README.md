@@ -16,9 +16,11 @@
 
 ## 本地配置要求
 
-- Android SDK 34
+- Android SDK 35 (compileSdk 35 / minSdk 34)
 - Java JDK 17+
-- Gradle 8.5
+- Gradle 9.4.1
+- Kotlin 2.2.10
+- AGP 9.2.1
 - Docker 24+ (for testing)
 - Docker Compose 2.0+
 
@@ -26,17 +28,18 @@
 
 - SSH密钥为只读权限，无法直接push到远程（需要手动推送或配置密钥）
 - 部分测试存在mock相关问题（如 Mockito stubbings 警告）
-- 详见 [PROBLEM_INVENTORY.md](./PROBLEM_INVENTORY.md)（**25 个已知问题，23 已 verified_closed / 2 打开** - 2026-06-17 Sprint2 更新）
+- 详见 [PROBLEM_INVENTORY.md](./PROBLEM_INVENTORY.md)（**25 个已知问题，25 全部 verified_closed / 0 打开** - 2026-06-18 Sprint3 更新）
 
-## 测试状态（2026-06-17 Sprint2 Verification 更新）
+## 测试状态（2026-06-18 Sprint3 Verification 更新）
 
 | 类别 | 状态 | 说明 |
 |------|------|------|
-| Lint (detekt) | ✅ 通过 | 1041 code smells, 无阻塞性问题 |
+| Lint (detekt) | ✅ 通过 | 1038 code smells, 无阻塞性问题 |
 | Lint (lintDebug) | ✅ 通过 | HTML/SARIF 报告已生成 |
-| Build (assembleDebug) | ✅ 通过 | BUILD SUCCESSFUL in 55s, 43 tasks |
-| 单元测试 (compileDebugUnitTestKotlin) | ✅ **通过** | **P025 ICE 问题已解决**, exit code 0 |
-| 单元测试 (testDebugUnitTest) | ⚠️ **有条件通过** | **1042 tests completed, 1037 passed (99.52%), 5 failed** (非 P025 相关) |
+| Build (assembleDebug) | ✅ 通过 | BUILD SUCCESSFUL, 62 tasks |
+| 编译验证 (compileDebugKotlin) | ✅ 通过 | 零 errors |
+| 编译验证 (compileDebugUnitTestKotlin) | ✅ 通过 | 零 errors |
+| 单元测试 (testDebugUnitTest) | ✅ **通过** | **1042/1042 全部通过, 0 失败** |
 | 集成测试 | ⏭️ 跳过 | 项目无独立集成测试目标 |
 | E2E 测试 | ⏭️ 跳过 | 需要物理设备/模拟器 |
 | Prod 构建 | ⏭️ 跳过 | 需要签名密钥 |
@@ -52,9 +55,15 @@
 - ✅ P006 Logger 堆栈保护
 - ✅ P009 VsockService 并发安全
 
-**遗留打开问题**: P004 (Thread.sleep), P010 (Kotlin ICE - 需升级 Compose Compiler)
+### Sprint3 修复成果（2026-06-18）
 
-**Verification 结论**: ⚠️ **有条件接受**（3 个非阻塞性改进建议待后续 Sprint 处理）
+**修复问题数**: 4/4 (100%)
+- ✅ P010 Kotlin serialization 插件版本不匹配（1.9.23→2.2.10）
+- ✅ 5 个失败测试修复（DockerDashboardViewModelErrorStateTest ×4 + VmTemplateTest ×1）
+- ✅ GlobalScope 替换为 rememberCoroutineScope（2 处）
+- ✅ PROBLEM_INVENTORY.md 同步更新（P004/P010 状态）
+
+**Verification 结论**: ✅ **三层审核链全部通过**（L1 代码审核 ✅ | L2 自动化测试 1042/1042 ✅ | L3 QA 源代码分析 ✅）
 
 ## 项目结构说明
 

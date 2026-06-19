@@ -115,9 +115,9 @@ com.droidvisor/
 
 ## 版本信息
 
-- **Min SDK**: 33 (Android 13)
-- **Target SDK**: 34 (Android 14)
+- **Min SDK**: 34 (Android 14)
+- **Target SDK**: 35 (Android 15)
 - **Compose BOM**: 2024.03.00
-- **Kotlin**: 1.9.23
-- **AGP**: 8.4.0
-- **Gradle**: 8.5
+- **Kotlin**: 2.2.10
+- **AGP**: 9.2.1
+- **Gradle**: 9.4.1

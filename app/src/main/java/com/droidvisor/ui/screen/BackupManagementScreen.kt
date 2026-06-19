@@ -24,7 +24,6 @@ import com.droidvisor.vm.model.Backup
 import com.droidvisor.vm.model.BackupStatus
 import com.droidvisor.vm.model.BackupType
 import com.droidvisor.vm.model.VerificationStatus
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import com.droidvisor.ui.components.StatusBadge
 import java.text.SimpleDateFormat
@@ -46,6 +45,7 @@ fun BackupManagementScreen(
     var backupToRestore by remember { mutableStateOf<Backup?>(null) }
 
     val sortedBackups = backups.filter { it.vmId == vmId }.sortedByDescending { it.createdTime }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -117,7 +117,7 @@ fun BackupManagementScreen(
         CreateBackupDialog(
             onDismiss = { showCreateBackupDialog = false },
             onCreate = { name, desc, type ->
-                GlobalScope.launch {
+                scope.launch {
                     backupManagerService?.createBackup(vmId, vmName, name, desc, type)
                 }
                 showCreateBackupDialog = false

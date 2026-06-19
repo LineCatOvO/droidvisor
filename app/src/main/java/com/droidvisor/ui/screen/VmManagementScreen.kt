@@ -58,6 +58,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,7 +78,6 @@ import com.droidvisor.vm.model.NetworkConfig
 import com.droidvisor.vm.model.VmInstance
 import com.droidvisor.vm.model.VmTemplate
 import com.droidvisor.datastore.VmStateDataStore
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -632,6 +632,8 @@ fun VmBackupAndNetworkDialogs(
     onDismissBackup: () -> Unit,
     onDismissNetwork: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     if (showBackupScreen && selectedVm != null) {
         BackupManagementScreen(
             vmId = selectedVm.id,
@@ -647,7 +649,7 @@ fun VmBackupAndNetworkDialogs(
             vmName = selectedVm.name,
             onSave = { config ->
                 vmStateDataStore?.let { store ->
-                    GlobalScope.launch {
+                    coroutineScope.launch {
                         store.saveNetworkConfig(config)
                     }
                 }

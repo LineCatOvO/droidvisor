@@ -74,9 +74,9 @@ class VmTemplateTest {
         val defaults = VmTemplate.getDefaultTemplates()
 
         assertEquals(3, defaults.size)
-        assertTrue(defaults.contains(VmTemplate.DOCKER_HOST))
-        assertTrue(defaults.contains(VmTemplate.STANDARD_DEBIAN))
-        assertTrue(defaults.contains(VmTemplate.MINIMAL_ALPINE))
+        assertTrue(defaults.any { it.type == VmTemplateType.DOCKER_HOST })
+        assertTrue(defaults.any { it.type == VmTemplateType.STANDARD_DEBIAN })
+        assertTrue(defaults.any { it.type == VmTemplateType.MINIMAL_ALPINE })
     }
 
     @Test

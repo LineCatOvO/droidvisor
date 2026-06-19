@@ -50,7 +50,7 @@ import com.droidvisor.vm.BackupManagerService
 import com.droidvisor.vm.ConsoleOutputService
 import com.droidvisor.vm.VmManagerService
 import com.droidvisor.vm.vsock.VsockService
-import kotlinx.coroutines.GlobalScope
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
