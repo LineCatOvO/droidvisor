@@ -162,3 +162,74 @@ tasks.register('jacocoTestReport', JacocoReport) {
         csv.required = false
     }
 }
+
+// ========== Droidvisor 运行配置 ==========
+// 自定义Task: 构建并部署应用到Android设备
+
+tasks.register('installAndRun') {
+    group = 'droidvisor'
+    description = 'Build debug APK, install to device, grant AVF permission, and launch app'
+
+    dependsOn 'assembleDebug'
+
+    doLast {
+        def appId = 'com.droidvisor'
+        def apkPath = file("${buildDir}/outputs/apk/debug/app-debug.apk")
+
+        // Step 1: 验证APK文件存在
+        if (!apkPath.exists()) {
+            throw new GradleException("❌ APK not found: ${apkPath.absolutePath}")
+        }
+        println "✅ APK verified: ${apkPath.length() / (1024 * 1024)} MB"
+
+        // Step 2: 检查ADB设备连接
+        def devices = 'adb devices'.execute().text.readLines()
+            .findAll { it.contains('\tdevice') }
+
+        if (devices.isEmpty()) {
+            throw new GradleException("❌ No ADB device connected. Please connect and authorize device.")
+        }
+        println "✅ Device connected: ${devices[0].split('\t')[0]}"
+
+        // Step 3: 安装APK到设备
+        println "📦 Installing APK..."
+        def installResult = exec {
+            commandLine 'adb', 'install', '-r', apkPath.absolutePath
+            ignoreExitValue = true
+        }
+        if (installResult.exitValue != 0) {
+            throw new GradleException("❌ APK installation failed (exit code: ${installResult.exitValue})")
+        }
+        println "✅ APK installed successfully"
+
+        // Step 4: 授予AVF虚拟机权限
+        println "🔐 Granting MANAGE_VIRTUAL_MACHINE permission..."
+        def grantResult = exec {
+            commandLine 'adb', 'shell', 'pm', 'grant', appId,
+                     'android.permission.MANAGE_VIRTUAL_MACHINE'
+            ignoreExitValue = true
+        }
+        if (grantResult.exitValue != 0) {
+            throw new GradleException("❌ Permission grant failed (exit code: ${grantResult.exitValue})")
+        }
+        println "✅ Permission granted"
+
+        // Step 5: 启动应用
+        println "🚀 Launching app..."
+        def launchResult = exec {
+            commandLine 'adb', 'shell', 'am', 'start',
+                     "-n ${appId}/.MainActivity"
+            ignoreExitValue = true
+        }
+        if (launchResult.exitValue != 0) {
+            throw new GradleException("❌ App launch failed (exit code: ${launchResult.exitValue})")
+        }
+
+        println ""
+        println "========================================"
+        println "🎉 Droidvisor deployed and launched!"
+        println "   App ID: $appId"
+        println "   Device: ${devices[0].split('\t')[0]}"
+        println "========================================"
+    }
+}
